@@ -1,7 +1,7 @@
 // Moving data between phone and PC (SPEC Phone and PC): state lineage, restore safety,
 // the list of what a restore would lose, and which settings travel with the data. Pure functions.
 import { kindLabel } from "./categories";
-import { parseDate } from "./months";
+import { DATE_LOCALE, parseDate } from "./months";
 import {
   LINEAGE_MAX,
   TRAVELING_SETTINGS,
@@ -88,7 +88,7 @@ export function lostSince(
   locale?: string,
 ): LossList {
   const changed = data.transactions.filter((t) => t.updatedAt > cutoff).sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt - a.updatedAt);
-  const dayFmt = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" });
+  const dayFmt = new Intl.DateTimeFormat(locale ?? DATE_LOCALE, { day: "numeric", month: "short" });
   const lines = changed.map((t) => {
     const d = parseDate(t.date);
     const day = d ? dayFmt.format(new Date(d.year, d.month - 1, d.day)) : t.date;

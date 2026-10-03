@@ -16,6 +16,8 @@
   --save: #3b6aa8;
   --warn: #8a6608;
   --bad: #b3362b;
+  --warn-ink: #6e5000;
+  --bad-ink: #a12d23;
   --focus: #1f6f5c;
 
   /* Type: system faces only, nothing is downloaded */
@@ -58,6 +60,8 @@
     --save: #7fa8e0;
     --warn: #e2b847;
     --bad: #ef7468;
+    --warn-ink: #e2b847;
+    --bad-ink: #ef7468;
     --focus: #5cc3a3;
     color-scheme: dark;
   }
@@ -78,6 +82,8 @@
   --save: #7fa8e0;
   --warn: #e2b847;
   --bad: #ef7468;
+  --warn-ink: #e2b847;
+  --bad-ink: #ef7468;
   --focus: #5cc3a3;
   color-scheme: dark;
 }

@@ -43,6 +43,14 @@ export function createGoalsScreen(ctx: AppContext): Screen {
               h("button", { type: "button", class: "btn btn-small", onclick: () => unarchive(ctx, g) }, "Unarchive"),
               h("button", { type: "button", class: "btn btn-small btn-danger", onclick: () => openDeleteGoal(ctx, g) }, "Delete"),
             )
+          : plan.kind === "reached"
+            ? h(
+                "div",
+                { class: "goal-actions" },
+                h("button", { type: "button", class: "btn btn-small btn-primary", onclick: () => openArchive(ctx, g) }, "Archive"),
+                h("button", { type: "button", class: "btn btn-small", onclick: () => openMoveSheet(ctx, g, "add") }, "Add"),
+                h("button", { type: "button", class: "btn btn-small", "aria-label": `More for ${g.name}`, onclick: () => openGoalMenu(ctx, g) }, "More"),
+              )
           : h(
               "div",
               { class: "goal-actions" },
@@ -170,7 +178,6 @@ function openArchive(ctx: AppContext, g: Goal): void {
     choices: [
       {
         label: "I spent it",
-        kind: "primary",
         note: "Records it as taken out of savings today. Log what you bought as expenses so this month adds up.",
         onSelect: async () => {
           if (await ctx.write(() => ctx.ledger.archiveGoal(g.id, "spent"), { success: `${g.name} archived` })) sheet.close();

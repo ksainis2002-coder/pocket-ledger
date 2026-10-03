@@ -1,5 +1,5 @@
 // Goals: saved amounts, the monthly plan (SPEC Goal plan), and the effects of deleting a goal.
-import { compareMonths, monthLabel, monthOf, monthsInclusive, addMonths, parseDate, type DateStr, type MonthKey } from "./months";
+import { DATE_LOCALE, compareMonths, monthLabel, monthOf, monthsInclusive, addMonths, parseDate, type DateStr, type MonthKey } from "./months";
 import type { Goal, Transaction } from "./types";
 
 /** savedCents = openingCents + linked saves − linked withdrawals (SPEC invariant). */
@@ -52,7 +52,7 @@ export function planText(plan: GoalPlan, money: (cents: number) => string, today
       return `Target date passed. ${money(plan.remaining)} still to go`;
     case "dueThisMonth": {
       const d = parseDate(plan.dueDate);
-      const label = d ? new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(new Date(d.year, d.month - 1, d.day)) : plan.dueDate;
+      const label = d ? new Intl.DateTimeFormat(locale ?? DATE_LOCALE, { day: "numeric", month: "short" }).format(new Date(d.year, d.month - 1, d.day)) : plan.dueDate;
       return `${money(plan.remaining)} due by ${label}`;
     }
     case "monthly": {
@@ -60,7 +60,7 @@ export function planText(plan: GoalPlan, money: (cents: number) => string, today
       const start = plan.startIsThisMonth
         ? "this month"
         : sameYear
-          ? new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(Number(plan.start.slice(0, 4)), Number(plan.start.slice(5, 7)) - 1, 1))
+          ? new Intl.DateTimeFormat(locale ?? DATE_LOCALE, { month: "long" }).format(new Date(Number(plan.start.slice(0, 4)), Number(plan.start.slice(5, 7)) - 1, 1))
           : monthLabel(plan.start, locale);
       return `Put aside ${money(plan.monthly)} a month from ${start} to reach it by ${monthLabel(plan.dueMonth, locale, "short")}`;
     }

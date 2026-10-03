@@ -2,7 +2,7 @@
 import { netChart } from "../../components/chart";
 import { emptyState, hero, sectionTitle } from "../../components/display";
 import { h, replaceChildren } from "../../components/dom";
-import { lastMonths } from "../../domain/months";
+import { DATE_LOCALE, lastMonths } from "../../domain/months";
 import { allTimeTotals, monthTotals } from "../../domain/totals";
 import { moneyFor, type AppContext, type Screen } from "../../app/context";
 import { capitalize, monthPhrase, screenEl } from "../shared/util";
@@ -31,7 +31,7 @@ export function createNetScreen(ctx: AppContext): Screen {
 
       const months = lastMonths(month, 6).map((m) => {
         const mt = monthTotals(data.transactions, m);
-        const label = new Intl.DateTimeFormat(ctx.locale, { month: "short" }).format(new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1, 1));
+        const label = new Intl.DateTimeFormat(DATE_LOCALE, { month: "short" }).format(new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1, 1));
         return { label, income: mt.income, expenses: mt.expenses, netToSavings: mt.netToSavings };
       });
       const all = allTimeTotals(data.transactions, data.goals);

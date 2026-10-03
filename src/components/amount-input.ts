@@ -1,5 +1,5 @@
 // Amount field (SPEC Amount input): a text field with the decimal keypad, parsed by parseAmount only.
-import { amountErrorMessage, centsToInput, parseAmount, type ParseResult } from "../domain/money";
+import { amountErrorMessage, centsToInput, decimalMark, parseAmount, type ParseResult } from "../domain/money";
 import { h } from "./dom";
 
 export interface AmountInput {
@@ -22,7 +22,7 @@ export function createAmountInput(opts: { id: string; label: string; allowZero?:
     inputmode: "decimal",
     autocomplete: "off",
     enterkeyhint: "done",
-    placeholder: opts.placeholder ?? "0,00",
+    placeholder: opts.placeholder ?? `0${decimalMark(opts.locale)}00`,
     "aria-describedby": errorId,
   });
   const error = h("p", { class: "field-error", id: errorId, "aria-live": "polite" });

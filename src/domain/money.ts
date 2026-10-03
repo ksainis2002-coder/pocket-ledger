@@ -92,9 +92,14 @@ export function formatMoney(cents: number, currency = "EUR", locale?: string, { 
   return f.format(cents / 100);
 }
 
+/** The decimal mark of a locale: "," for el-GR, "." for en-GB. */
+export function decimalMark(locale?: string): string {
+  return new Intl.NumberFormat(locale).formatToParts(1.5).find((p) => p.type === "decimal")?.value ?? ".";
+}
+
 /** Text for an editable amount field: 1250 -> "12,50" or "12.50" by locale, no symbol, no thousands separator. */
 export function centsToInput(cents: number, locale?: string): string {
-  const decimal = new Intl.NumberFormat(locale).formatToParts(1.5).find((p) => p.type === "decimal")?.value ?? ".";
+  const decimal = decimalMark(locale);
   const major = Math.trunc(cents / 100);
   const minor = String(cents % 100).padStart(2, "0");
   return `${major}${decimal}${minor}`;

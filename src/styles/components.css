@@ -382,8 +382,8 @@
 }
 
 .pill-ok { background: var(--accent-soft); color: var(--accent); }
-.pill-warn { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
-.pill-bad { background: color-mix(in srgb, var(--bad) 15%, transparent); color: var(--bad); }
+.pill-warn { background: color-mix(in srgb, var(--warn) 18%, var(--surface)); color: var(--warn-ink); }
+.pill-bad { background: color-mix(in srgb, var(--bad) 15%, var(--surface)); color: var(--bad-ink); }
 
 /* ---------- Entry list ---------- */
 

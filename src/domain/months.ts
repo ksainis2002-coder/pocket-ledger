@@ -2,6 +2,10 @@
 // dates are "YYYY-MM-DD" strings and months are "YYYY-MM" strings, always local.
 // Never parse these with new Date("YYYY-MM-DD"), which reads them as UTC.
 
+/** The app is in English, so dates and month names are English ("3 Oct", "October 2026") on every device.
+ * Numbers and money follow the device's own locale (12,50 € on a Greek phone). */
+export const DATE_LOCALE = "en-GB";
+
 export type DateStr = string; // "YYYY-MM-DD"
 export type MonthKey = string; // "YYYY-MM"
 
@@ -89,5 +93,5 @@ export function lastMonths(end: MonthKey, count: number): MonthKey[] {
 /** "October 2026" in the given locale. Uses the local Date constructor, never a string parse. */
 export function monthLabel(month: MonthKey, locale?: string, style: "long" | "short" = "long"): string {
   const { year, month: m } = requireMonth(month);
-  return new Intl.DateTimeFormat(locale, { month: style, year: "numeric" }).format(new Date(year, m - 1, 1));
+  return new Intl.DateTimeFormat(locale ?? DATE_LOCALE, { month: style, year: "numeric" }).format(new Date(year, m - 1, 1));
 }
