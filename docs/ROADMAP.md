@@ -78,7 +78,8 @@ Notes:
 **Prompt:** "Do Phase 4 from docs/ROADMAP.md. The GitHub repo is <username>/pocket-ledger."
 
 - Add the GitHub remote and push `main` with its full history
-- GitHub Actions: lint + test + build on every push and PR; deploy `main` to GitHub Pages using `npm run build:pages`
+- GitHub Actions: lint + test + build + e2e on every push and PR (`npx playwright install --with-deps chromium` before `npm run e2e`); deploy `main` to GitHub Pages using `npm run build:pages`, only after those pass
+- Lockfile: the build environment has no npm registry access, so there is no `package-lock.json` yet. The first CI run uses `npm install` (all five dev dependencies are pinned exactly) and uploads the lockfile it made; commit that file (every `resolved` must be `https://registry.npmjs.org/`), then CI switches to `npm ci`
 - From here on, each change is a branch and a PR
 - Real-device checks on the Pages URL:
   - iPhone: install gate shows in Safari; Add to Home Screen; the app opens offline; backup through the share sheet saves to Files; Back up now → Save to Files → Cancel in the Files picker leaves "Last backup" unchanged (if iOS reports the share as done anyway, ask "Did you save it?" before committing); the layout looks right on the real screen (notch, keyboard over the Add button)
