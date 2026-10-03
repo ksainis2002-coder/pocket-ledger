@@ -2,7 +2,7 @@
 
 Everything is built and tested on your computer first. GitHub comes only in Phase 4 (Publish).
 
-Each phase is one local branch. Paste the **prompt** into Claude Code to start a phase. Review it with `npm run dev`, and on your phone with `npm run dev -- --host` (same Wi-Fi). Then approve the merge.
+Each phase is one local branch. Paste the **prompt** into Claude Code (on a computer) or into the Claude chat session that builds the app (from a phone) to start a phase. Review it with `npm run dev`, and on your phone with `npm run dev -- --host` (same Wi-Fi). Then approve the merge.
 
 Notes:
 - A phone can't install the app or use offline mode from your computer over Wi-Fi, because that needs HTTPS. Installing and offline mode are tested on desktop Chrome (`localhost` counts as secure) until Phase 4, and on real phones after that.
@@ -22,7 +22,7 @@ Notes:
 - An `npm run build:pages` script that builds with base `/pocket-ledger/` and works the same on Windows, macOS and Linux (no shell-only `BASE=… npm run build` syntax).
 - `git init` with a `main` branch (no remote)
 
-**Done when:** `npm run e2e` passes (it checks both base paths in Chromium); `npm run build && npm run preview` installs as an app in desktop Chrome, opens offline, and shows 5 tabs; the same works with `npm run build:pages && npm run preview`; and on a phone over Wi-Fi the layout looks right at phone size.
+**Done when:** `npm run e2e` passes (it checks both base paths in Chromium); `npm run build && npm run preview` installs as an app in desktop Chrome, opens offline, and shows 5 tabs; the same works with `npm run build:pages && npm run preview`; and `npm run screenshots` saves every tab at 375×812 and 375×667 in light and dark, and they've been reviewed. (No computer on the same Wi-Fi is available, so the real-phone layout check happens in Phase 4.)
 
 ## Phase 1 — Data layer and money logic
 **Prompt:** "Do Phase 1 from docs/ROADMAP.md."
@@ -54,7 +54,7 @@ Notes:
 - Empty states on every tab
 - Playwright smoke test at 375×812: add salary, an expense (amount, chip, Enter), a saving and a goal contribution, then check the Net figures; delete the expense and undo it
 
-**Done when:** all tabs work end to end in the browser, an expense can be logged in 3 taps, the install gate logic passes its unit tests (it's simulated in tests, since a real iPhone check needs HTTPS), and the phone layout looks right over Wi-Fi.
+**Done when:** all tabs work end to end in the browser, an expense can be logged in 3 taps, the install gate logic passes its unit tests (it's simulated in tests, since a real iPhone check needs HTTPS), and `npm run screenshots` output for every tab, form and sheet has been reviewed.
 
 ## Phase 3 — Safety net
 **Prompt:** "Do Phase 3 from docs/ROADMAP.md."
@@ -78,7 +78,8 @@ Notes:
 - GitHub Actions: lint + test + build on every push and PR; deploy `main` to GitHub Pages using `npm run build:pages`
 - From here on, each change is a branch and a PR
 - Real-device checks on the Pages URL:
-  - iPhone: install gate shows in Safari; Add to Home Screen; the app opens offline; backup through the share sheet saves to Files
+  - iPhone: install gate shows in Safari; Add to Home Screen; the app opens offline; backup through the share sheet saves to Files; the layout looks right on the real screen (notch, keyboard over the Add button)
+  - iPhone storage: add, edit, delete and undo entries, close the app fully, reopen, and confirm everything is still there (the WebKit check for the IndexedDB layer)
   - Android: installs from Chrome, opens offline, and the "Add expense" shortcut works
 - Remove "Not published yet" from the README Status
 - Run the release checklist from the project instructions and fix every fail
@@ -100,6 +101,6 @@ Each item is its own branch and PR. Any schema change needs a schema migration a
 ---
 
 ## Ground rules for every phase
-- `npm run lint && npm run test && npm run build` pass before a phase is called done
+- `npm run lint && npm run test && npm run build` pass before a phase is called done, and `npm run e2e` from Phase 1 on
 - The phase summary lists what changed, how it was tested, and any new dependency with its reason
 - Nothing in the app sends data off the device

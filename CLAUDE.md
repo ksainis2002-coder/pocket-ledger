@@ -24,7 +24,7 @@ There is no import of prototype data.
 
 ## Non-negotiables
 
-1. **No user data leaves the device.** No backend, no telemetry, no third-party scripts at runtime, no CDN fonts. Self-host fonts. The only network traffic is loading the app's own static files.
+1. **No user data leaves the device.** No backend, no telemetry, no third-party scripts at runtime, no CDN fonts (use system font stacks, or self-hosted files in `public/fonts/`). The only network traffic is loading the app's own static files.
 2. **Money is stored as integer cents** (`amountCents: number`). Never store or add floats. Parse input only with `parseAmount` from `src/domain/money.ts`. Format only at the UI edge with `Intl.NumberFormat`.
 3. **Dates are local calendar dates** stored as `"YYYY-MM-DD"` strings. Never convert them through UTC (no `new Date("2026-10-03")` for display logic; parse the parts). Read "today" from app state, never from a value captured at load.
 4. **Works offline.** After the first visit, every feature works with no connection.
@@ -41,9 +41,13 @@ The project has only four dev dependencies, all pinned in `package.json`: `esbui
 - **No UI framework.** Screens are plain TypeScript that build DOM with the small helpers in `src/components/dom.ts`. Each screen exposes `render(state)` and re-renders when its data changes. Always set text with `textContent`, never with `innerHTML` built from data.
 - **esbuild** bundles the app (`scripts/build.mjs`) and serves it in development (`scripts/dev.mjs`)
 - **Storage:** IndexedDB through our own small layer in `src/db/` (no Dexie). Repositories depend on a `Store` interface with two adapters: `IdbStore` for the browser and `MemoryStore` for Node tests. Both must pass the same contract tests (`src/db/store.contract.ts`): in Node against `MemoryStore`, and in Chromium via `npm run e2e` against `IdbStore`.
+- **IndexedDB rules** (Safari is the strictest about these):
+  - Never `await` anything except IndexedDB requests inside a transaction. A transaction commits as soon as it has no pending requests, so awaiting a domain function, a timer or a fetch mid-transaction silently commits half a write. Read everything, compute synchronously with pure domain functions, then write, all inside the one transaction.
+  - `MemoryStore` behaves like IndexedDB: a transaction is all-or-nothing. If any write in it fails, nothing from it is saved. The contract tests include "the second of three writes fails, and none are saved".
+  - The store contract tests run against `IdbStore` in Chromium (`npm run e2e`). WebKit can't be downloaded in the build environment, so Safari storage behavior is checked on a real iPhone in Phase 4.
 - **Offline and updates:** a hand-written service worker generated at build time (`scripts/build.mjs` writes `sw.js` with the precache list). Updates use the "prompt" pattern: a new worker waits and is only activated by the owner (SPEC App updates). It never calls `skipWaiting()` on its own.
 - **Plain CSS with CSS custom properties** (design tokens in `src/styles/tokens.css`). No UI kit.
-- **Fonts:** system font stacks only, so nothing is fetched from a font CDN. Self-hosted font files may be added to `public/fonts/` later.
+- **Fonts:** system font stacks only, so nothing is fetched from a font CDN. Self-hosted font files may be added to `public/fonts/` later. Every amount uses the `.num` class (monospace stack `--font-mono` with `font-variant-numeric: tabular-nums`) so figures line up.
 - **Tests:** Node's built-in test runner (`node:test` + `node:assert/strict`) run through `tsx`, for unit and repository tests. **Playwright** (library, Chromium) for end-to-end checks at a 375×812 viewport.
 - **Lint:** `tsc --noEmit` with the strict flags above, plus `scripts/lint.mjs`, which enforces the non-negotiables: no `parseFloat` or `Number(` on amount strings, no `new Date("YYYY-MM-DD")` string parsing, no `window.confirm`, no `innerHTML =` with data, and no external URLs in `src/`.
 - Charts are hand-rolled SVG. Add a chart library only if this becomes painful, and ask first.
@@ -87,8 +91,9 @@ Keep business logic in `src/domain/` as pure, tested functions. Components call 
 - `npm run test` — unit and repository tests (`node:test`)
 - `npm run e2e` — Playwright in Chromium; builds at `/` and `/pocket-ledger/` and checks install, offline and the shell. First run on a new computer: `npx playwright install chromium`.
 - `npm run lint` — strict type-check plus `scripts/lint.mjs`
+- `npm run screenshots` — saves every tab at 375×812 and 375×667, light and dark, to `e2e/screenshots/` for layout review
 
-Before saying a task is done: `npm run lint && npm run test && npm run build` must pass.
+Before saying a task is done: `npm run lint && npm run test && npm run build` must pass. From Phase 1 on, `npm run e2e` must pass too, because the real `IdbStore` is only tested there.
 
 ## Working style
 
