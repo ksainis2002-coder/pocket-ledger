@@ -201,7 +201,7 @@ Logging an expense should take under 5 seconds: amount, category, Add.
   4. "Add expense" button, full width.
 - When the Expenses tab is opened from the tab bar or the shortcut, and the selected month is the current month, the amount field gets focus so the keyboard opens.
 - Enter in the amount field submits the form (desktop and Android). The iPhone decimal keypad has no return key, so the "Add expense" button must stay visible above the open keyboard on a 375×667 screen; it is the main way to submit on iPhone.
-- After adding: the amount and note clear, the category stays, focus returns to the amount field, and the toast says "Expense added · Undo".
+- After adding: the amount and note clear, the category stays, the date goes back to today, focus returns to the amount field, and the toast says "Expense added · Undo".
 - Choosing a category moves it to the front of `recentExpenseCategories` (max 4).
 - **PWA shortcut:** the manifest has a shortcut "Add expense" that opens `?add=expense`, which shows the Expenses tab on the current month with the amount focused. Android shows it on long-press of the icon; iOS doesn't support manifest shortcuts.
 

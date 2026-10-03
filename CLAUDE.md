@@ -67,7 +67,8 @@ src/
     expenses/     Expenses tab + budgets
     savings/      Savings tab
     goals/        Goals tab
-    settings/     Currency, backup/export/import, CSV, updates, about
+    settings/     Currency, backup/export/import, CSV, updates, about (Phase 3)
+    shared/       Quick add form, edit sheet, helpers used by several screens
   db/             Store interface, IdbStore, MemoryStore, schema, migrations, repositories, typed errors, undo
   domain/         Pure logic: money parsing and math, month totals, goal plans, CSV (no DOM, no storage)
   components/     Shared UI (dom helpers, Money, AmountInput, MonthPicker, BarRow, Ring, Sheet, Toast, CategoryChips)
