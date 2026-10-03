@@ -129,13 +129,13 @@ export const storeContract: ContractCase[] = [
     name: "each table uses its own key field",
     async run(store) {
       await store.transact(["budgets", "settings"], "readwrite", async (tx) => {
-        await tx.put("budgets", { category: "Groceries", limitCents: 35000 });
+        await tx.put("budgets", { category: "Groceries", limitCents: 35000, updatedAt: 1 });
         await tx.put("settings", { key: "settings", currency: "EUR" });
       });
       const [b, s] = await store.transact(["budgets", "settings"], "readonly", async (tx) =>
         Promise.all([tx.get("budgets", "Groceries"), tx.get("settings", "settings")]),
       );
-      equal(b, { category: "Groceries", limitCents: 35000 }, "budget by category");
+      equal(b, { category: "Groceries", limitCents: 35000, updatedAt: 1 }, "budget by category");
       equal(s, { key: "settings", currency: "EUR" }, "settings by key");
     },
   },

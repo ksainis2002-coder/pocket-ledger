@@ -9,11 +9,13 @@ import { isValidDate, type DateStr } from "../domain/months";
 import { checkSavingsRules, freeSavingsMessage, violationMessage } from "../domain/rules";
 import { savingsPosition } from "../domain/totals";
 import {
+  DELETE_LOG_MAX,
   GOAL_NAME_MAX,
   MAX_CENTS,
   NOTE_MAX,
   SCHEMA_VERSION,
   type Budget,
+  type DeleteRecord,
   type Goal,
   type Kind,
   type LedgerData,
@@ -62,8 +64,12 @@ interface Plan {
   settings?: Partial<Settings>;
   /** Counts toward changesSinceSync (default true). */
   counted?: boolean;
-  /** Entries deleted (negative when an undo brings them back). */
-  entryDeletes?: number;
+  /** Deletes to record in the delete log, for the "what would be lost" list. */
+  logDeletes?: DeleteRecord["what"][];
+  /** An undo removes the log records its write added. */
+  unlogDeletes?: number;
+  /** A settings-only write that still counts as a change (currency, locale). */
+  countSettings?: boolean;
   /** Toast label; when set, the write can be undone. */
   undoLabel?: string;
 }
@@ -73,7 +79,7 @@ interface UndoRecord {
   transactions: Map<string, Transaction | null>;
   goals: Map<string, Goal | null>;
   budgets: Map<string, Budget | null>;
-  entryDeletes: number;
+  loggedDeletes: number;
 }
 
 export interface NewEntry {
@@ -139,8 +145,7 @@ export class Ledger {
       deviceName: detectDeviceName(this.deps.userAgent ?? "", this.deps.maxTouchPoints ?? 0),
       stateLineage: [],
       changesSinceSync: 0,
-      deletesSinceImport: 0,
-      goalBudgetChangesSinceImport: 0,
+      deleteLog: [],
       recentExpenseCategories: [...DEFAULT_RECENT_EXPENSE_CATEGORIES],
       schemaVersion: SCHEMA_VERSION,
     };
@@ -218,7 +223,7 @@ export class Ledger {
       const t = s.transactions.get(id);
       if (!t) throw new InputError("This entry no longer exists.");
       const label = t.kind === "save" || t.kind === "withdraw" ? "Savings movement deleted" : `${ENTRY_LABEL[t.kind]} deleted`;
-      return { deleteTransactions: [id], entryDeletes: 1, undoLabel: label };
+      return { deleteTransactions: [id], logDeletes: ["entry"], undoLabel: label };
     });
   }
 
@@ -316,10 +321,10 @@ export class Ledger {
     return this.change((s) => {
       this.requireGoal(s, goalId);
       const linked = [...s.transactions.values()].filter((t) => t.goalId === goalId);
-      const plan: Plan = { deleteGoals: [goalId] };
+      const plan: Plan = { deleteGoals: [goalId], logDeletes: ["goal"] };
       if (mode === "delete") {
         plan.deleteTransactions = linked.map((t) => t.id);
-        plan.entryDeletes = linked.length;
+        plan.logDeletes = ["goal", ...linked.map(() => "entry" as const)];
       } else {
         const now = this.deps.now();
         plan.putTransactions = linked.map((t) => {
@@ -336,19 +341,23 @@ export class Ledger {
   setBudget(category: string, limitCents: number): Promise<WriteResult> {
     return this.change(() => {
       if (!isExpenseCategory(category)) throw new InputError("Choose an expense category.");
-      return { putBudgets: [{ category, limitCents: this.checkAmount(limitCents) }] };
+      return { putBudgets: [{ category, limitCents: this.checkAmount(limitCents), updatedAt: this.deps.now() }] };
     });
   }
 
   removeBudget(category: string): Promise<WriteResult> {
-    return this.change((s) => (s.budgets.has(category) ? { deleteBudgets: [category] } : { counted: false }));
+    return this.change((s) => (s.budgets.has(category) ? { deleteBudgets: [category], logDeletes: ["budget"] } : { counted: false }));
   }
 
-  /** Preferences that aren't data: currency, theme, snooze, install acknowledgement. Not counted as changes. */
+  /**
+   * Preferences. Currency and locale travel with the data, so changing them counts as a change;
+   * theme, snooze and the install acknowledgement stay on this device and don't.
+   */
   updateSettings(patch: SettingsPatch): Promise<WriteResult> {
-    return this.change(() => {
+    return this.change((s) => {
       if (patch.currency !== undefined && !/^[A-Z]{3}$/.test(patch.currency)) throw new InputError("Choose a currency.");
-      return { settings: patch, counted: false };
+      const traveling = (patch.currency !== undefined && patch.currency !== s.settings.currency) || ("locale" in patch && patch.locale !== s.settings.locale);
+      return { settings: patch, counted: traveling, countSettings: traveling };
     });
   }
 
@@ -359,7 +368,7 @@ export class Ledger {
     const record = this.lastUndo;
     if (!record || record.id !== token.id) return Promise.reject(new InputError("There's nothing to undo."));
     return this.change(() => {
-      const plan: Plan = { putTransactions: [], deleteTransactions: [], putGoals: [], deleteGoals: [], putBudgets: [], deleteBudgets: [], entryDeletes: -record.entryDeletes };
+      const plan: Plan = { putTransactions: [], deleteTransactions: [], putGoals: [], deleteGoals: [], putBudgets: [], deleteBudgets: [], unlogDeletes: record.loggedDeletes };
       for (const [id, v] of record.transactions) v ? plan.putTransactions!.push(v) : plan.deleteTransactions!.push(id);
       for (const [id, v] of record.goals) v ? plan.putGoals!.push(v) : plan.deleteGoals!.push(id);
       for (const [id, v] of record.budgets) v ? plan.putBudgets!.push(v) : plan.deleteBudgets!.push(id);
@@ -406,13 +415,13 @@ export class Ledger {
         for (const b of plan.putBudgets ?? []) (after.budgets.set(b.category, b), touchedBudgets.add(b.category));
         for (const c of plan.deleteBudgets ?? []) (after.budgets.delete(c), touchedBudgets.add(c));
 
-        // Keep every goal's savedCents equal to the invariant.
+        // Keep every goal's savedCents equal to the invariant. It's derived, so updatedAt doesn't change.
         const txList = [...after.transactions.values()];
         const now = this.deps.now();
         for (const g of after.goals.values()) {
           const saved = computeSaved(g, txList);
           if (saved !== g.savedCents) {
-            after.goals.set(g.id, { ...g, savedCents: saved, updatedAt: now });
+            after.goals.set(g.id, { ...g, savedCents: saved });
             touchedGoals.add(g.id);
           }
         }
@@ -424,14 +433,14 @@ export class Ledger {
         if (violation) throw new RuleError(violationMessage(violation, this.money(before)));
 
         const counted = plan.counted !== false;
-        const explicitGoalBudget = (plan.putGoals?.length ?? 0) + (plan.deleteGoals?.length ?? 0) + (plan.putBudgets?.length ?? 0) + (plan.deleteBudgets?.length ?? 0) > 0;
         const nothingTouched = touchedTx.size + touchedGoals.size + touchedBudgets.size === 0;
         const s = before.settings;
         const nextSettings: Settings = { ...s, ...plan.settings };
-        if (counted && !nothingTouched) {
-          nextSettings.changesSinceSync = s.changesSinceSync + 1;
-          nextSettings.deletesSinceImport = Math.max(0, s.deletesSinceImport + (plan.entryDeletes ?? 0));
-          if (explicitGoalBudget) nextSettings.goalBudgetChangesSinceImport = s.goalBudgetChangesSinceImport + 1;
+        if (counted && (!nothingTouched || plan.countSettings)) nextSettings.changesSinceSync = s.changesSinceSync + 1;
+        const logged = (plan.logDeletes ?? []).map((what) => ({ at: now, what }));
+        if (logged.length || plan.unlogDeletes) {
+          const kept = plan.unlogDeletes ? s.deleteLog.slice(0, Math.max(0, s.deleteLog.length - plan.unlogDeletes)) : s.deleteLog;
+          nextSettings.deleteLog = [...kept, ...logged].slice(-DELETE_LOG_MAX);
         }
 
         const undo: UndoRecord | null = plan.undoLabel
@@ -440,7 +449,7 @@ export class Ledger {
               transactions: new Map([...touchedTx].map((id) => [id, before.transactions.get(id) ?? null])),
               goals: new Map([...touchedGoals].map((id) => [id, before.goals.get(id) ?? null])),
               budgets: new Map([...touchedBudgets].map((id) => [id, before.budgets.get(id) ?? null])),
-              entryDeletes: plan.entryDeletes ?? 0,
+              loggedDeletes: logged.length,
             }
           : null;
 

@@ -372,41 +372,73 @@ test("SPEC Storage errors: a failed write leaves data unchanged and returns the 
   assert.deepEqual(await ledger.read(), before);
 });
 
-test("Phone and PC counters: writes and undos count; settings changes don't; deletes and goal/budget changes are tracked", async () => {
+test("Phone and PC counters: entries, undos, goals, budgets and currency count; theme and recent lists don't", async () => {
   const { ledger } = await make();
   const s = async () => (await ledger.read()).settings;
   const a = await ledger.addEntry({ kind: "expense", amountCents: 100, category: "Other", date: TODAY });
-  assert.equal((await s()).changesSinceSync, 1);
+  assert.equal((await s()).changesSinceSync, 1, "an add (its recent-category update isn't counted separately)");
   await ledger.undo(a.undo!);
-  assert.equal((await s()).changesSinceSync, 2);
+  assert.equal((await s()).changesSinceSync, 2, "an undo");
   await ledger.addEntry({ kind: "expense", amountCents: 100, category: "Other", date: TODAY });
   const id = (await ledger.read()).transactions[0]!.id;
   await ledger.editEntry(id, { amountCents: 150 });
-  const del = await ledger.deleteEntry(id);
-  let st = await s();
-  assert.equal(st.changesSinceSync, 5);
-  assert.equal(st.deletesSinceImport, 1);
-  await ledger.undo(del.undo!);
-  st = await s();
-  assert.equal(st.deletesSinceImport, 0, "undoing a delete takes it back");
-  assert.equal(st.goalBudgetChangesSinceImport, 0);
+  await ledger.deleteEntry(id);
+  assert.equal((await s()).changesSinceSync, 5, "add, edit, delete");
   await ledger.setBudget("Groceries", 35_000);
   const { goalId } = await ledger.createGoal({ name: "Trip", targetCents: 1_000, openingCents: 0 });
+  assert.equal((await s()).changesSinceSync, 7, "a budget and a goal");
+  let changes = (await s()).changesSinceSync;
+  await ledger.updateSettings({ theme: "dark", backupSnoozedUntil: 5, iosBrowserAcknowledged: true });
+  assert.equal((await s()).changesSinceSync, changes, "per-device settings don't count");
+  await ledger.updateSettings({ currency: "EUR" });
+  assert.equal((await s()).changesSinceSync, changes, "setting the same currency again doesn't count");
+  await ledger.updateSettings({ currency: "USD" });
+  assert.equal((await s()).changesSinceSync, changes + 1, "a currency change travels with the data, so it counts");
+  changes += 1;
   await ledger.addToGoal(goalId, 100);
-  st = await s();
-  assert.equal(st.goalBudgetChangesSinceImport, 2, "budget and goal creation count; a contribution is an entry");
-  const changes = st.changesSinceSync;
-  await ledger.updateSettings({ currency: "USD", theme: "dark" });
-  st = await s();
-  assert.equal(st.changesSinceSync, changes, "preferences don't count");
-  assert.equal(st.currency, "USD");
+  assert.equal((await s()).changesSinceSync, changes + 1);
+});
+
+test("delete log: entry, goal and budget deletes are recorded; an undo removes its records", async () => {
+  const { ledger } = await make();
+  const log = async () => (await ledger.read()).settings.deleteLog.map((d) => d.what);
+  await ledger.addEntry({ kind: "expense", amountCents: 100, category: "Other", date: TODAY });
+  const id = (await ledger.read()).transactions[0]!.id;
+  const del = await ledger.deleteEntry(id);
+  assert.deepEqual(await log(), ["entry"]);
+  await ledger.undo(del.undo!);
+  assert.deepEqual(await log(), [], "undoing the delete takes its record back");
+  await ledger.setBudget("Groceries", 35_000);
+  await ledger.removeBudget("Groceries");
+  const { goalId } = await ledger.createGoal({ name: "Trip", targetCents: 1_000, openingCents: 0 });
+  await ledger.addToGoal(goalId, 100);
+  await ledger.addToGoal(goalId, 200);
+  await ledger.deleteGoal(goalId, "delete");
+  assert.deepEqual(await log(), ["budget", "goal", "entry", "entry"]);
+  const all = (await ledger.read()).settings.deleteLog;
+  assert.ok(all.every((d) => typeof d.at === "number" && d.at > 0));
+});
+
+test("a goal contribution changes savedCents but not the goal's updatedAt", async () => {
+  const { ledger } = await make();
+  const { goalId } = await ledger.createGoal({ name: "Trip", targetCents: 1_000, openingCents: 0 });
+  const before = (await ledger.read()).goals.find((g) => g.id === goalId)!;
+  await ledger.addToGoal(goalId, 100);
+  const after = (await ledger.read()).goals.find((g) => g.id === goalId)!;
+  assert.equal(after.savedCents, 100);
+  assert.equal(after.updatedAt, before.updatedAt, "derived savedCents isn't a goal edit");
+  await ledger.editGoal(goalId, { name: "Big trip" });
+  assert.ok((await ledger.read()).goals[0]!.updatedAt > before.updatedAt, "a real edit updates it");
 });
 
 test("budgets: set, replace and remove; only expense categories", async () => {
   const { ledger } = await make();
   await ledger.setBudget("Groceries", 35_000);
   await ledger.setBudget("Groceries", 30_000);
-  assert.deepEqual((await ledger.read()).budgets, [{ category: "Groceries", limitCents: 30_000 }]);
+  const [b] = (await ledger.read()).budgets;
+  assert.equal(b?.category, "Groceries");
+  assert.equal(b?.limitCents, 30_000);
+  assert.ok((b?.updatedAt ?? 0) > 0, "budgets carry updatedAt");
   await rejectsWith(ledger.setBudget("Salary", 100), InputError);
   await ledger.removeBudget("Groceries");
   assert.deepEqual((await ledger.read()).budgets, []);
