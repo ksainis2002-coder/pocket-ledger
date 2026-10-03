@@ -14,7 +14,8 @@
     "preview": "node scripts/serve.mjs",
     "test": "node --import tsx --test \"src/**/*.test.ts\" \"scripts/**/*.test.mjs\"",
     "e2e": "node --test --test-concurrency=1 \"e2e/**/*.test.mjs\"",
-    "lint": "tsc --noEmit && node scripts/lint.mjs"
+    "lint": "tsc --noEmit && node scripts/lint.mjs",
+    "screenshots": "node e2e/screenshots.mjs"
   },
   "devDependencies": {
     "@types/node": "26.2.0",

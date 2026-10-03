@@ -5,3 +5,4 @@ coverage
 e2e/out
 .DS_Store
 *.local
+e2e/screenshots

@@ -5,7 +5,7 @@
 // First run on a new computer: npx playwright install chromium
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { appendFile, mkdir } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -15,6 +15,16 @@ import { startServer } from "../scripts/serve.mjs";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(ROOT, "e2e/out");
 const PHONE = { viewport: { width: 375, height: 812 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true };
+
+/** Poll an async in-page check until it returns true. (page.waitForFunction treats an async check as already true.) */
+async function waitInPage(page, fn, { timeout = 10_000, message = "condition" } = {}) {
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    if (await page.evaluate(fn)) return;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error(`Timed out waiting for ${message}`);
+}
 
 let browser;
 before(async () => {
@@ -76,8 +86,10 @@ for (const base of ["/", "/pocket-ledger/"]) {
       assert.equal(await label.innerText(), currentLabel);
       assert.equal(await page.getByRole("button", { name: "Next month" }).isDisabled(), true);
 
-      // Picker hidden on Goals.
+      // Picker hidden on Goals, and the header keeps its height so content doesn't jump.
+      const headerHeight = (await page.locator(".topbar").boundingBox()).height;
       await page.getByRole("tab", { name: "Goals" }).click();
+      assert.equal((await page.locator(".topbar").boundingBox()).height, headerHeight);
       assert.equal(await page.locator(".picker").isVisible(), false);
       assert.equal(await page.locator("#page-title").innerText(), "Goals");
 
@@ -118,11 +130,29 @@ for (const base of ["/", "/pocket-ledger/"]) {
       await page.evaluate(() => {
         window.__marker = "still here";
       });
-      await appendFile(path.join(outdir, "sw.js"), "\n// update " + Date.now() + "\n");
+      // Simulate the next release: same files, new version id (a real build changes it when any file changes).
+      const swPath = path.join(outdir, "sw.js");
+      const sw = await readFile(swPath, "utf8");
+      const nextVersion = Date.now().toString(16).padStart(12, "0").slice(-12);
+      await writeFile(swPath, sw.replace(/const VERSION = "[0-9a-f]{12}";/, `const VERSION = "${nextVersion}";`));
       await page.evaluate(async () => (await navigator.serviceWorker.getRegistration())?.update());
-      await page.waitForFunction(async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting), null, { timeout: 10_000 });
+      await waitInPage(page, async () => Boolean((await navigator.serviceWorker.getRegistration())?.waiting), { message: "the update to be waiting" });
       await page.waitForTimeout(1500);
       assert.equal(await page.evaluate(() => window.__marker), "still here");
+
+      // When the waiting version is activated, the old cache is deleted and only the new one remains.
+      const cachesBefore = await page.evaluate(() => caches.keys());
+      assert.equal(cachesBefore.length, 2, JSON.stringify(cachesBefore));
+      await page.evaluate(async () => {
+        const reg = await navigator.serviceWorker.getRegistration();
+        const changed = new Promise((r) => navigator.serviceWorker.addEventListener("controllerchange", r, { once: true }));
+        reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        await changed;
+      });
+      await waitInPage(page, async () => (await caches.keys()).length === 1, { message: "the old cache to be deleted" });
+      const cachesAfter = await page.evaluate(() => caches.keys());
+      assert.equal(cachesAfter[0], "pocket-ledger-" + nextVersion);
+      assert.equal(await page.evaluate(() => window.__marker), "still here", "the app reloaded itself on activation");
 
       assert.deepEqual([...foreignHosts], [], "requests to other hosts");
       assert.deepEqual(errors, [], "page errors");
