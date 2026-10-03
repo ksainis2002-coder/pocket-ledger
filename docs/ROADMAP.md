@@ -16,13 +16,13 @@ Notes:
 - TypeScript (strict), esbuild build and dev server, `node:test` via tsx, Playwright (see CLAUDE.md Stack)
 - `tokens.css` with light and dark palettes, taken from the prototype's colors
 - System font stacks (no font downloads)
-- App shell: header, month picker, bottom tab bar with 5 empty tabs, last tab remembered
+- App shell: header, month picker, bottom tab bar with 5 empty tabs, last tab remembered; at 900px and wider a left side menu replaces the bottom bar (SPEC Phone and PC)
 - Web app manifest (name, icons, `display: standalone`, theme colors) and a build-generated service worker that precaches the app for offline use and waits for the owner before updating (SPEC App updates). No auto-reload.
 - Base path set at build time, default `/`. Asset paths, manifest `start_url` and `scope`, and the service worker scope all follow it.
 - An `npm run build:pages` script that builds with base `/pocket-ledger/` and works the same on Windows, macOS and Linux (no shell-only `BASE=… npm run build` syntax).
 - `git init` with a `main` branch (no remote)
 
-**Done when:** `npm run e2e` passes (it checks both base paths in Chromium); `npm run build && npm run preview` installs as an app in desktop Chrome, opens offline, and shows 5 tabs; the same works with `npm run build:pages && npm run preview`; and `npm run screenshots` saves every tab at 375×812 and 375×667 in light and dark, and they've been reviewed. (No computer on the same Wi-Fi is available, so the real-phone layout check happens in Phase 4.)
+**Done when:** `npm run e2e` passes (it checks both base paths in Chromium); `npm run build && npm run preview` installs as an app in desktop Chrome, opens offline, and shows 5 tabs; the same works with `npm run build:pages && npm run preview`; and `npm run screenshots` saves every tab at 375×812, 375×667, 1280×800 and 1920×1080 in light and dark, and they've been reviewed. (No computer on the same Wi-Fi is available, so the real-phone layout check happens in Phase 4.)
 
 ## Phase 1 — Data layer and money logic
 **Prompt:** "Do Phase 1 from docs/ROADMAP.md."
@@ -32,6 +32,7 @@ Notes:
 - Repository functions for undo: restore the previous state of an added, edited or deleted entry, following the same rules (SPEC Undo)
 - Typed repository errors (`RuleError`, `QuotaError`, `StorageError`) and IndexedDB `versionchange`/`blocked` hooks exposed to the app (SPEC Storage errors, App updates)
 - Repositories refuse entry dates later than today (SPEC Dates and today)
+- Settings fields for Phone and PC (`deviceId`, `deviceName` from the user agent, `lastSyncAt`, `changesSinceSync`, `lastImport`); every repository write increments `changesSinceSync` in the same transaction
 - `domain/money.ts`: `parseAmount` per SPEC Amount input; format with Intl
 - `domain/months.ts`: month keys, previous/next, last 6 months, local-date helpers
 - `domain/totals.ts`: month totals (including net to savings), per-category totals, all-time totals, savings balance
@@ -61,6 +62,7 @@ Notes:
 
 - Settings screen: currency, theme
 - JSON export and import (schema-validated, preview, confirm) per SPEC Backup
+- "Phone and PC" in Settings per SPEC: Send to my other device, Open from my other device, Last moved, the unsent-changes warning, PC install hint
 - CSV export per SPEC CSV export (Greek Excel friendly)
 - Backup reminder per SPEC (time or volume); storage status display
 - "Export what can be read" on the "Can't open your data" screen
@@ -69,7 +71,7 @@ Notes:
 - Install instructions; delete-all-data flow
 - Test: export → wipe → import gives identical data; the SPEC's required Backup and CSV tests
 
-**Done when:** a backup restores perfectly on a different browser, and the CSV opens with correct columns and amounts in Excel with Greek settings.
+**Done when:** a backup restores perfectly on a different browser, moving data both ways between two browser profiles (standing in for phone and PC) loses nothing and warns about unsent changes, and the CSV opens with correct columns and amounts in Excel with Greek settings.
 
 ## Phase 4 — Publish
 **Prompt:** "Do Phase 4 from docs/ROADMAP.md. The GitHub repo is <username>/pocket-ledger."
@@ -81,6 +83,7 @@ Notes:
   - iPhone: install gate shows in Safari; Add to Home Screen; the app opens offline; backup through the share sheet saves to Files; the layout looks right on the real screen (notch, keyboard over the Add button)
   - iPhone storage: add, edit, delete and undo entries, close the app fully, reopen, and confirm everything is still there (the WebKit check for the IndexedDB layer)
   - Android: installs from Chrome, opens offline, and the "Add expense" shortcut works
+  - PC: installs from Chrome or Edge, opens offline in its own window, side menu and keyboard use work; move data phone → PC → phone with nothing lost
 - Remove "Not published yet" from the README Status
 - Run the release checklist from the project instructions and fix every fail
 

@@ -6,11 +6,19 @@ A private personal-finance app for tracking income, expenses, savings and goals.
 Early development. **Not published yet:** it is built and tested locally until Phase 4 (Publish). See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Use it
-Open the GitHub Pages URL for this repo on your phone, then install it before entering anything.
+Open the GitHub Pages URL for this repo, then install it before entering anything.
 - **iPhone:** Safari → Share → Add to Home Screen, then open Pocket Ledger from the home screen. Data entered in Safari stays in Safari and doesn't move to the installed app.
 - **Android:** Chrome → menu → Install app
+- **PC:** Chrome or Edge → the install button in the address bar. It opens in its own window and works offline.
 
-Your data lives only in the installed app on that device. Nothing is sent anywhere.
+Your data lives only on that device. Nothing is sent anywhere.
+
+## Phone and PC
+Each device has its own copy of your data. Use one device at a time, and move your data when you switch:
+1. On the device you used last: Settings → **Send to my other device**. Save the file to iCloud Drive, Google Drive or OneDrive, or email it to yourself.
+2. On the other device: Settings → **Open from my other device**, pick the file, check the preview, then tap **Replace my data**.
+
+If you changed anything on the second device since the last move, the app warns you before those changes would be lost.
 
 ## Back up
 Back up regularly, and always before changing phones. The app reminds you.

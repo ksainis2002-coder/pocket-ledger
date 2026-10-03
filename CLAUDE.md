@@ -91,7 +91,7 @@ Keep business logic in `src/domain/` as pure, tested functions. Components call 
 - `npm run test` — unit and repository tests (`node:test`)
 - `npm run e2e` — Playwright in Chromium; builds at `/` and `/pocket-ledger/` and checks install, offline and the shell. First run on a new computer: `npx playwright install chromium`.
 - `npm run lint` — strict type-check plus `scripts/lint.mjs`
-- `npm run screenshots` — saves every tab at 375×812 and 375×667, light and dark, to `e2e/screenshots/` for layout review
+- `npm run screenshots` — saves every tab at 375×812, 375×667, 1280×800 and 1920×1080, light and dark, to `e2e/screenshots/` for layout review
 
 Before saying a task is done: `npm run lint && npm run test && npm run build` must pass. From Phase 1 on, `npm run e2e` must pass too, because the real `IdbStore` is only tested there.
 
