@@ -171,6 +171,21 @@ try {
     await context.close();
   }
 
+  // A Greek phone (decimal comma), light and dark: every tab with data, and the edit sheet.
+  for (const colorScheme of ["light", "dark"]) {
+    const context = await contextFor(SIZES[0], colorScheme, { locale: "el-GR" });
+    const page = await open(context, true);
+    for (const tab of TABS) {
+      await page.getByRole("tab", { name: tab }).click();
+      await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
+      await shot(page, `el-GR-${tab.toLowerCase()}-${colorScheme}.png`);
+    }
+    await page.getByRole("tab", { name: "Expenses" }).click();
+    await page.locator('[data-screen="expenses"] .entry').first().click();
+    await shot(page, `el-GR-edit-sheet-${colorScheme}.png`);
+    await context.close();
+  }
+
   // Install gate, Safari banner and error screens on a phone.
   for (const colorScheme of ["light", "dark"]) {
     const context = await contextFor(SIZES[0], colorScheme, { userAgent: IPHONE_UA });

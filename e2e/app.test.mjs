@@ -254,6 +254,30 @@ describe("Phase 2 screens", () => {
     await context.close();
   });
 
+  test("Greek phone: amounts use a decimal comma everywhere, cents always show two digits, dates stay English", async () => {
+    const { context, page } = await openApp({ locale: "el-GR" });
+    await tab(page, "Income");
+    assert.equal(await page.locator("#income-form-amount").getAttribute("placeholder"), "0,00");
+    await page.locator("#income-form-amount").fill("2400");
+    await page.getByRole("button", { name: "Add income" }).click();
+    await page.locator(".toast-text", { hasText: "Income added" }).waitFor();
+    await tab(page, "Expenses");
+    await page.keyboard.type("12,5");
+    await page.getByRole("button", { name: "Add expense" }).click();
+    await page.locator(".toast-text", { hasText: "Expense added" }).waitFor();
+    const entry = page.locator('[data-screen="expenses"] .entry').first();
+    assert.match(await entry.innerText(), /−12,50\s€/);
+    await entry.click();
+    assert.equal(await page.locator("#edit-amount").inputValue(), "12,50", "the edit sheet prefills with a comma");
+    await page.getByRole("button", { name: "Close" }).click();
+    await tab(page, "Net");
+    assert.match(await page.locator("#net-hero .hero-value").innerText(), /^2\.387,50\s€$/);
+    assert.match(await page.locator("#net-stats").innerText(), /12,50\s€/);
+    const month = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(new Date());
+    assert.equal(await page.locator(".picker-label").innerText(), month, "month names are English, like the rest of the app");
+    await context.close();
+  });
+
   test("no sideways scroll on any tab at 375 wide, with data", async () => {
     const { context, page } = await openApp();
     await addIncome(page, "2400", "Salary");
