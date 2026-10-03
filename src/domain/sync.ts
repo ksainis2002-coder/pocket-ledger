@@ -46,7 +46,9 @@ export function restoreSafety(device: SyncFields & { hasData: boolean }, fileLin
   return { safe: false, reason: "neverReceived" };
 }
 
-export function restoreWarning(s: Exclude<RestoreSafety, { safe: true }>, deviceName: string, fromDeviceName: string): string {
+export function restoreWarning(s: Exclude<RestoreSafety, { safe: true }>, deviceName: string, fromDeviceName: string, fromThisDevice = false): string {
+  // A backup made on this same device: "your Linux PC never received" would make no sense.
+  if (fromThisDevice) return "This backup doesn't include your latest changes. Restoring will lose them.";
   return s.reason === "unsentChanges"
     ? `You made ${s.changes} change${s.changes === 1 ? "" : "s"} on this ${deviceName} since you last sent or received data. Restoring will lose them.`
     : `This ${deviceName} has data your ${fromDeviceName} never received. Restoring will lose it.`;

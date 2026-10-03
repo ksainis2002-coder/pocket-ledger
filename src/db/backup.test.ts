@@ -69,7 +69,8 @@ test("export → delete all → import gives identical data; this device keeps i
 
   const { preview, result } = await open(pc, text);
   assert.deepEqual(preview.safety, { safe: true }, "an empty device is always safe to restore onto");
-  assert.equal(preview.older, undefined);
+  assert.equal(preview.warning, undefined);
+  assert.equal(preview.fromThisDevice, true, "this PC's own backup");
   assert.equal(result.repairedGoals, 0);
   const after = await pc.read();
   assert.deepEqual(after.transactions, before.transactions);

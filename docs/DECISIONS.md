@@ -71,3 +71,6 @@
 | 2026-10-04 | Delete all keeps device id, name, theme and the install choice, and resets everything else | Restoring straight afterwards is always safe, and the device keeps its identity for moving data |
 | 2026-10-04 | "Export what can be read" opens the database without a version and reads each table on its own | Works when a normal open fails, never upgrades or creates a database, and saves what it can |
 | 2026-10-04 | The month picker uses a short label on phones (≤420px) | The title, picker and gear must fit on one line at 375px |
+| 2026-10-04 | No "older backup" line in the restore preview; the lineage warning and lost list replace it | They catch every case it did; when a restore is safe it could only fire from clock skew between devices, and showing both repeated the same entries |
+| 2026-10-04 | A file made on this same device says "From this {device}" and "This backup doesn't include your latest changes" | "Your Linux PC never received" makes no sense when restoring your own older backup on that PC |
+| 2026-10-04 | The Install card always lists the iPhone steps | The PC is where you'd read them before setting up the phone |

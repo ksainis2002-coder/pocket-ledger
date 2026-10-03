@@ -219,6 +219,8 @@ export function readBackupText(text: string): ValidationResult {
 
 export interface RestorePreview {
   fromDeviceName: string;
+  /** The file was made on this same device (its own older backup). */
+  fromThisDevice: boolean;
   /** "12 minutes ago", "yesterday", "3 Oct". */
   madeAgo: string;
   counts: { transactions: number; goals: number; budgets: number };
@@ -227,8 +229,6 @@ export interface RestorePreview {
   /** Set when it isn't safe to restore. */
   warning?: string;
   loss?: LossList;
-  /** SPEC Import step 3. */
-  older?: { count: number; since: number };
 }
 
 /** "just now", "12 minutes ago", "3 hours ago", "yesterday", "4 days ago", or a date. */
@@ -248,21 +248,19 @@ export function restorePreview(current: LedgerData, file: BackupFile, now: numbe
   const hasData = current.transactions.length + current.goals.length + current.budgets.length > 0;
   const safety = restoreSafety({ hasData, stateLineage: current.settings.stateLineage, changesSinceSync: current.settings.changesSinceSync }, file.state.lineage);
   const newest = file.data.transactions.reduce<string | undefined>((m, t) => (m === undefined || t.date > m ? t.date : m), undefined);
+  const fromThisDevice = file.fromDevice.id === current.settings.deviceId;
   const preview: RestorePreview = {
     fromDeviceName: file.fromDevice.name,
+    fromThisDevice,
     madeAgo: timeAgo(file.exportedAt, now),
     counts: { transactions: file.data.transactions.length, goals: file.data.goals.length, budgets: file.data.budgets.length },
     safety,
   };
   if (newest) preview.newestEntryDate = newest;
   if (!safety.safe) {
-    preview.warning = restoreWarning(safety, current.settings.deviceName, file.fromDevice.name);
+    preview.warning = restoreWarning(safety, current.settings.deviceName, file.fromDevice.name, fromThisDevice);
     const cutoff = lossCutoff(current.settings.stateLineage, file.state.lineage, current.settings.lastImport);
     preview.loss = lostSince({ ...current, deleteLog: current.settings.deleteLog }, cutoff, money, locale);
-  }
-  if (hasData) {
-    const newer = current.transactions.filter((t) => t.updatedAt > file.exportedAt);
-    if (newer.length > 0) preview.older = { count: newer.length, since: file.exportedAt };
   }
   return preview;
 }

@@ -111,11 +111,12 @@ test("restore preview on an empty device: safe, counts and newest date, no warni
   assert.deepEqual(p.counts, { transactions: 3, goals: 1, budgets: 1 });
   assert.equal(p.newestEntryDate, "2026-10-03");
   assert.equal(p.warning, undefined);
-  assert.equal(p.older, undefined);
+  assert.equal(p.warning, undefined);
+  assert.equal(p.fromThisDevice, true);
 });
 
-test("restore preview with unsent changes: warning, lost list, and the older-backup count", () => {
-  const phone = buildBackup(data({ settings: settings({ deviceName: "iPhone" }) }), 1_000, () => "phone-1").file;
+test("restore preview with unsent changes: warning and lost list, no second older-backup warning", () => {
+  const phone = buildBackup(data({ settings: settings({ deviceId: "dev-phone", deviceName: "iPhone" }) }), 1_000, () => "phone-1").file;
   const here = data({
     transactions: [tx("expense", 450, "2026-10-04", { updatedAt: 2_000, category: "Eating out", note: "Coffee" }), tx("income", 100, "2026-10-01", { updatedAt: 500 })],
     settings: settings({ changesSinceSync: 1 }),
@@ -124,7 +125,24 @@ test("restore preview with unsent changes: warning, lost list, and the older-bac
   assert.deepEqual(p.safety, { safe: false, reason: "unsentChanges", changes: 1 });
   assert.equal(p.warning, "You made 1 change on this Windows PC since you last sent or received data. Restoring will lose them.");
   assert.deepEqual(p.loss?.shown, ["4 Oct · Eating out · €4.50 · Coffee", "1 Oct · Salary · €1"]);
-  assert.deepEqual(p.older, { count: 1, since: 1_000 }, "one entry here is newer than the backup");
+  assert.equal(p.fromThisDevice, false);
+  assert.equal("older" in p, false, "the lineage warning replaces the older-backup line");
+});
+
+test("restore preview of this device's own older backup: 'this device' wording", () => {
+  const own = buildBackup(data(), 1_000, () => "pc-1").file;
+  const coffee = tx("expense", 450, "2026-10-04", { updatedAt: 2_000, category: "Eating out", note: "Coffee" });
+  // Unsent change since the backup.
+  const changed = data({ transactions: [coffee], settings: settings({ stateLineage: [{ id: "pc-1", at: 1_000 }], changesSinceSync: 1 }) });
+  const p1 = restorePreview(changed, own, 3_000, eur, "en-GB");
+  assert.equal(p1.fromThisDevice, true);
+  assert.equal(p1.warning, "This backup doesn't include your latest changes. Restoring will lose them.");
+  assert.deepEqual(p1.loss?.shown, ["4 Oct · Eating out · €4.50 · Coffee"]);
+  // No unsent changes, but a newer state was sent elsewhere since this backup ("never received" case).
+  const moved = data({ transactions: [coffee], settings: settings({ stateLineage: [{ id: "pc-1", at: 1_000 }, { id: "pc-2", at: 2_500 }], changesSinceSync: 0 }) });
+  const p2 = restorePreview(moved, own, 3_000, eur, "en-GB");
+  assert.deepEqual(p2.safety, { safe: false, reason: "neverReceived" });
+  assert.equal(p2.warning, "This backup doesn't include your latest changes. Restoring will lose them.");
 });
 
 test("timeAgo", () => {

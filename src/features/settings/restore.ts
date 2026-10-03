@@ -64,14 +64,6 @@ function openPreview(ctx: AppContext, file: BackupFile, mode: "backup" | "device
           )
         : null;
 
-    const older = p.older
-      ? h(
-          "p",
-          { class: "sheet-text warn-text" },
-          `This backup is older than the data on this ${data.settings.deviceName}. ${plural(p.older.count, "entry", "entries")} added or changed since ${new Intl.DateTimeFormat(DATE_LOCALE, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(p.older.since))} will be lost.`,
-        )
-      : null;
-
     const saveCopy = h("button", { type: "button", class: "btn btn-block" }, "Save a copy first");
     saveCopy.addEventListener("click", async () => {
       saveCopy.disabled = true;
@@ -94,11 +86,10 @@ function openPreview(ctx: AppContext, file: BackupFile, mode: "backup" | "device
 
     replaceChildren(
       body,
-      h("p", { class: "restore-source" }, `From your ${p.fromDeviceName} · made ${p.madeAgo}`),
+      h("p", { class: "restore-source" }, `${p.fromThisDevice ? `From this ${data.settings.deviceName}` : `From your ${p.fromDeviceName}`} · made ${p.madeAgo}`),
       h("p", { class: "sheet-text num" }, summary, p.newestEntryDate ? ` · newest entry ${dayLabel(p.newestEntryDate)}` : ""),
       unsafe && p.warning ? h("p", { class: "banner restore-warning", role: "alert" }, h("span", { class: "banner-text" }, p.warning)) : null,
       lossBlock,
-      older,
       h("p", { class: "sheet-text" }, "Restoring replaces every entry, goal and budget on this device."),
       saveCopy,
       confirm,

@@ -111,6 +111,7 @@ describe("Phase 3: safety net", () => {
     assert.match(await page.locator("#settings-devices").innerText(), /This device: Linux PC/);
     assert.match(await page.locator("#last-moved").innerText(), /Not moved yet/);
     assert.match(await page.locator("#last-backup").innerText(), /Never/);
+    assert.match(await page.locator("#settings-install").innerText(), /iPhone: Safari → Share → Add to Home Screen/, "iPhone steps show on the PC too");
 
     await page.getByRole("radio", { name: "Dark" }).click();
     assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), "dark");
@@ -177,6 +178,7 @@ describe("Phase 3: safety net", () => {
     const warning = pc.page.locator(".restore-warning");
     assert.match(await warning.innerText(), /You made 1 change on this Linux PC since you last sent or received data\. Restoring will lose them\./);
     assert.match(await pc.page.locator(".loss-list").innerText(), /Eating out · €4\.50 · Coffee on the PC/);
+    assert.doesNotMatch(await pc.page.locator(".sheet").innerText(), /older than/, "one warning, not two");
     await pc.page.getByRole("button", { name: "Copy list" }).click();
     await toast(pc.page, "List copied");
     assert.match(await pc.page.evaluate(() => navigator.clipboard.readText()), /Coffee on the PC/);
@@ -232,8 +234,21 @@ describe("Phase 3: safety net", () => {
     const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.locator("#restore-backup").click()]);
     await chooser.setFiles(backup);
     await page.locator(".restore-source").waitFor();
+    assert.match(await page.locator(".restore-source").innerText(), /^From this Linux PC · made /, "its own backup");
     assert.equal(await page.locator(".restore-warning").count(), 0);
     assert.equal(await page.locator("#restore-confirm").innerText(), "Replace my data");
+    await page.locator("#restore-confirm").click();
+    await toast(page, "Backup restored");
+    assert.equal(await netFigure(page), "€100");
+
+    // A change after that, then the same older backup again: the same-device warning.
+    await addExpense(page, "7", "Groceries");
+    await settings(page);
+    const [chooser2] = await Promise.all([page.waitForEvent("filechooser"), page.locator("#restore-backup").click()]);
+    await chooser2.setFiles(backup);
+    await page.locator(".restore-source").waitFor();
+    assert.equal(await page.locator(".restore-warning").innerText(), "This backup doesn't include your latest changes. Restoring will lose them.");
+    assert.match(await page.locator(".loss-list").innerText(), /Groceries · €7/);
     await page.locator("#restore-confirm").click();
     await toast(page, "Backup restored");
     assert.equal(await netFigure(page), "€100");

@@ -151,6 +151,7 @@ export function createSettingsScreen(ctx: AppContext): Screen {
                   "ul",
                   { class: "steps" },
                   h("li", {}, "PC: in Chrome or Edge, click the install button in the address bar. The app opens in its own window and works offline."),
+                  h("li", {}, "iPhone: Safari → Share → Add to Home Screen, then open it from the home screen."),
                   h("li", {}, "Android: in Chrome, open the menu and choose Install app."),
                   h("li", {}, "Mac Safari: File → Add to Dock. Its data is separate from Safari's, so pick one way to open the app and stick to it."),
                 ),

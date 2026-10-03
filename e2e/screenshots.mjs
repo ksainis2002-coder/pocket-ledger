@@ -206,7 +206,7 @@ try {
     await shot(page, `sheet-delete-all-${tag}.png`);
     await page.getByRole("button", { name: "Close" }).click();
 
-    // An unsent change, then restore the backup made above: warning, lost list and the older-backup line.
+    // An unsent change, then restore this device's own file made above: "From this …" and the same-device warning.
     await page.getByRole("tab", { name: "Expenses" }).click();
     await page.locator("#expense-form-amount").fill("4,50");
     await page.getByRole("radio", { name: "Eating out" }).click();
@@ -218,7 +218,7 @@ try {
     const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.locator("#restore-backup").click()]);
     await chooser.setFiles(backupPath);
     await page.locator(".restore-source").waitFor();
-    await shot(page, `restore-warning-${tag}.png`);
+    await shot(page, `restore-warning-same-device-${tag}.png`);
     await page.getByRole("button", { name: "Close" }).click();
     await context.close();
 
@@ -230,6 +230,19 @@ try {
     await ch2.setFiles(backupPath);
     await p2.locator(".restore-source").waitFor();
     await shot(p2, `restore-safe-${tag}.png`);
+    // Restore it, make a change here, then open the other device's file again: the other-device warning.
+    await p2.locator("#restore-confirm").click();
+    await p2.locator(".toast-text", { hasText: "Backup restored" }).waitFor();
+    await p2.getByRole("tab", { name: "Expenses" }).click();
+    await p2.locator("#expense-form-amount").fill("9");
+    await p2.getByRole("radio", { name: "Transport" }).click();
+    await p2.getByRole("button", { name: "Add expense" }).click();
+    await p2.locator(".toast-text", { hasText: "Expense added" }).waitFor();
+    await p2.getByRole("button", { name: "Settings" }).click();
+    const [ch3] = await Promise.all([p2.waitForEvent("filechooser"), p2.locator("#open-device").click()]);
+    await ch3.setFiles(backupPath);
+    await p2.locator(".restore-warning").waitFor();
+    await shot(p2, `restore-warning-other-device-${tag}.png`);
     await fresh.close();
   }
 
