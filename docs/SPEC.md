@@ -182,14 +182,16 @@ When the backup reminder is due (see Backup), it shows as a banner at the top of
 - Archived goals sit in a collapsed "Archived" list below the active ones.
 
 ### Settings (gear icon in the header)
-- Currency (EUR default) and theme.
+Settings is a view of its own, opened and closed with the gear; the month picker is hidden there and no tab is selected. On phones the month picker shows a short label ("Oct 2026") so the title, picker and gear fit on one line.
+
+- Currency (EUR default; only currencies with two decimal places: EUR, USD, GBP, CHF, CAD, AUD, SEK, PLN) and theme (System, Light, Dark).
 - **Backup:** "Back up now" (export everything as JSON); "Restore from backup" (import). See Backup.
 - **Phone and PC:** "Send to my other device", "Open from my other device" and "Last moved" (see Phone and PC).
 - Export transactions as CSV (see CSV export).
 - Storage status: whether persistent storage is granted, whether the app is installed, and the last backup date ("Never" if none).
 - **Updates:** when a new version is waiting, "Update ready" with a "Reload now" button (see App updates).
 - Install-to-home-screen instructions for iPhone (Safari → Share → Add to Home Screen) and Android.
-- Delete all data (requires typing DELETE to confirm).
+- Delete all data (requires typing DELETE to confirm). It deletes every entry, goal and budget. This device keeps `deviceId`, `deviceName`, `theme` and `iosBrowserAcknowledged`; every other setting starts fresh (`stateLineage`, `changesSinceSync`, `deleteLog`, backup dates, snooze, last move, currency and recent categories). An empty device is always safe to restore onto, so restoring a backup straight after a delete never warns.
 
 ## Fast entry
 
@@ -350,7 +352,7 @@ interface BackupFile {
 Logic lives in a pure `backupReminder(now, settings, changedCount, totalCount)` with unit tests for each rule and for snoozing.
 
 **Import.**
-1. Pick a file. Validate it fully against the schema before touching any data: `app` and `formatVersion` match, all amounts are positive integers within the maximum (opening amounts ≥ 0), dates are valid `YYYY-MM-DD`, IDs are unique, every `goalId` points to a goal in the file, and only `save`/`withdraw` have a `goalId`. On failure, show one plain sentence with the first problem ("This file isn't a Pocket Ledger backup" or "Entry 214 has an invalid date") and change nothing.
+1. Pick a file. The file input has no `accept` filter (iOS can grey out `.json` files in the Files picker when one is set); the check below rejects anything that isn't a backup. Validate it fully against the schema before touching any data: `app` and `formatVersion` match, all amounts are positive integers within the maximum (opening amounts ≥ 0), dates are valid `YYYY-MM-DD`, IDs are unique, every `goalId` points to a goal in the file, and only `save`/`withdraw` have a `goalId`. On failure, show one plain sentence with the first problem ("This file isn't a Pocket Ledger backup" or "Entry 214 has an invalid date") and change nothing.
 2. Preview: which device it came from and when it was made ("From your iPhone · made 12 minutes ago"), counts of transactions, goals and budgets, and the date of its newest entry. Unless it is safe to restore (Phone and PC), show the warning and the list of what would be lost.
 3. If the newest `updatedAt` in the current data is later than the backup's `exportedAt`, show a warning in the preview: "This backup is older than the data on this {deviceName}. {N} entries added or changed since {date} will be lost." N is the number of current transactions with `updatedAt > exportedAt`.
 4. The preview always offers "Save a copy first" (runs Export, then returns to this preview) above the confirm button "Replace my data".
@@ -366,12 +368,12 @@ For opening transactions in a spreadsheet. It is not a backup and can't be impor
 
 - File: `pocket-ledger-transactions-YYYY-MM-DD.csv`, delivered the same way as a backup (share sheet, else download).
 - UTF-8 with a BOM, CRLF line endings.
-- Columns: Date, Type, Category, Amount, Note, Goal. Type is Income, Expense, Into savings or Taken out. Goal is the goal's name or empty.
+- Columns: Date, Type, Category, Amount, Note, Goal. Date is `YYYY-MM-DD` (Excel in any language reads it as a real date and sorts it correctly). Type is Income, Expense, Into savings or Taken out. Goal is the goal's name or empty. Rows are oldest first.
 - Delimiter: `;` when the locale's decimal mark is a comma (as in Greek), otherwise `,`.
 - Amounts use the locale's decimal mark, with no thousands separator and no currency symbol (`12,50` in Greek).
 - Fields containing the delimiter, a quote or a line break are quoted, with quotes doubled.
 - Formula injection: any cell starting with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'`.
-- Required tests: Greek locale output (`;`, `12,50`, BOM); English locale output (`,`, `12.50`); a note with a delimiter and quotes; a note starting with `=`; Greek characters survive.
+- Required tests: Greek locale output (`;`, `12,50`, BOM, `YYYY-MM-DD`); English locale output (`,`, `12.50`); a note with a delimiter and quotes; a note starting with `=`; Greek characters survive; an e2e test that downloads the CSV and reads it back. Opening it in Excel is checked on the PC in Phase 4.
 
 ## Behavior rules
 

@@ -72,7 +72,7 @@ Notes:
 - Install instructions; delete-all-data flow
 - Test: export → wipe → import gives identical data; the SPEC's required Backup and CSV tests
 
-**Done when:** a backup restores perfectly on a different browser, moving data both ways between two browser profiles (standing in for phone and PC) loses nothing and warns about unsent changes, and the CSV opens with correct columns and amounts in Excel with Greek settings.
+**Done when:** a backup restores perfectly in another browser profile, moving data both ways between two browser profiles (standing in for phone and PC) loses nothing and warns about unsent changes, and an e2e test downloads the CSV on a Greek-locale page and reads it back (BOM, `;`, `12,50`, `YYYY-MM-DD`, Greek text, formula escaping). Opening the CSV in Excel is a Phase 4 PC check.
 
 ## Phase 4 — Publish
 **Prompt:** "Do Phase 4 from docs/ROADMAP.md. The GitHub repo is <username>/pocket-ledger."
@@ -85,7 +85,8 @@ Notes:
   - iPhone keyboard: tap Expenses in the tab bar → the decimal keypad opens by itself (iOS only opens it when focus happens inside the tap; if it doesn't, focus synchronously in the tab's click handler)
   - iPhone storage: add, edit, delete and undo entries, close the app fully, reopen, and confirm everything is still there (the WebKit check for the IndexedDB layer)
   - Android: installs from Chrome, opens offline, and the "Add expense" shortcut works
-  - PC: installs from Chrome or Edge, opens offline in its own window, side menu and keyboard use work; move data phone → PC → phone with nothing lost
+  - PC: installs from Chrome or Edge, opens offline in its own window, side menu and keyboard use work; move data phone → PC → phone with nothing lost; the CSV opens in Excel with correct columns, dates and amounts
+  - iPhone file picker: "Restore from backup" shows the .json backup in Files (not greyed out)
 - Remove "Not published yet" from the README Status
 - Run the release checklist from the project instructions and fix every fail
 
