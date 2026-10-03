@@ -31,6 +31,13 @@ button {
   display: none !important;
 }
 
+/* Every amount and figure: monospace with aligned digits. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
 .icon {
   width: 22px;
   height: 22px;
@@ -69,7 +76,8 @@ button {
   margin: 0 auto;
   padding-inline: max(var(--space-4), env(safe-area-inset-left, 0px)) max(var(--space-4), env(safe-area-inset-right, 0px));
   padding-block: var(--space-3);
-  min-height: 60px;
+  /* Same height with or without the month picker, so content doesn't jump between tabs. */
+  min-height: calc(var(--tap) + 2 * var(--space-3));
   display: flex;
   align-items: center;
   justify-content: space-between;
