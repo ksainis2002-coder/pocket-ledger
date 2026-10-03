@@ -32,14 +32,14 @@ Notes:
 - Repository functions for undo: restore the previous state of an added, edited or deleted entry, following the same rules (SPEC Undo)
 - Typed repository errors (`RuleError`, `QuotaError`, `StorageError`) and IndexedDB `versionchange`/`blocked` hooks exposed to the app (SPEC Storage errors, App updates)
 - Repositories refuse entry dates later than today (SPEC Dates and today)
-- Settings fields for Phone and PC (`deviceId`, `deviceName` from the user agent, `stateLineage`, `changesSinceSync`, `deletesSinceImport`, `lastSyncAt`, `lastImport`); every repository write updates the counters in the same transaction; pure `restoreSafety()` and "what would be lost" functions in `src/domain/` with their SPEC tests
+- Settings fields for Phone and PC (`deviceId`, `deviceName` from the user agent, `stateLineage` with `{ id, at }`, `changesSinceSync`, `deleteLog`, `lastSyncAt`, `lastImport`) and `Budget.updatedAt`; every counted repository write updates them in the same transaction; pure `nextExportState()`, `restoreSafety()`, `lossCutoff()`, `lostSince()`, `settingsForExport()` and `settingsAfterImport()` in `src/domain/sync.ts` with their SPEC tests
 - `domain/money.ts`: `parseAmount` per SPEC Amount input; format with Intl
 - `domain/months.ts`: month keys, previous/next, last 6 months, local-date helpers
 - `domain/totals.ts`: month totals (including net to savings), per-category totals, all-time totals, savings balance
 - `domain/goals.ts`: `goalPlan` per SPEC Goal plan, and status
 - Unit tests for everything above, plus repository tests against `MemoryStore` and the store contract tests in Chromium, including every required test listed in SPEC Amount input, Goal plan, Undo (repository side), Storage errors (failed write) and Goals and savings rules
 
-**Done when:** `npm run test` covers domain logic, the SPEC's required tests for this phase, and the edge cases listed in CLAUDE.md.
+**Done when:** `npm run test` covers domain logic, the SPEC's required tests for this phase, and the edge cases listed in CLAUDE.md; `npm run e2e` runs the store contract against IndexedDB in Chromium and confirms settings are created at startup.
 
 ## Phase 2 — Core screens
 **Prompt:** "Do Phase 2 from docs/ROADMAP.md. Use prototype/pocket-ledger-prototype.html as the behavior reference, minus the Don't port list in CLAUDE.md."
@@ -53,6 +53,7 @@ Notes:
 - "Today" refreshed on visibility, focus and every minute (SPEC Dates and today); date pickers capped at today
 - Net tab with stats, all-time figures and the 6-month SVG chart using net to savings, with a zero line and a hidden table as the text alternative
 - Empty states on every tab
+- Speed check (e2e, real IndexedDB in Chromium): seed 10,000 transactions and 20 goals, then time an add, an edit and an undo; each under 150 ms. If it misses, read only savings movements and goals for the rules check and write single entries directly.
 - Playwright smoke test at 375×812: add salary, an expense (amount, chip, Enter), a saving and a goal contribution, then check the Net figures; delete the expense and undo it
 
 **Done when:** all tabs work end to end in the browser, an expense can be logged in 3 taps, the install gate logic passes its unit tests (it's simulated in tests, since a real iPhone check needs HTTPS), and `npm run screenshots` output for every tab, form and sheet has been reviewed.
@@ -62,7 +63,7 @@ Notes:
 
 - Settings screen: currency, theme
 - JSON export and import (schema-validated, preview, confirm) per SPEC Backup
-- "Phone and PC" in Settings per SPEC: Send to my other device, Open from my other device, Last moved, the state lineage in exported files, the unsent-changes warning with the list of what would be lost and "Copy list", PC install hint
+- "Phone and PC" in Settings per SPEC: Send to my other device, Open from my other device, Last moved, the state lineage in exported files, the unsent-changes warning with the list of what would be lost, "Copy list" and "Save a copy first", PC install hint
 - CSV export per SPEC CSV export (Greek Excel friendly)
 - Backup reminder per SPEC (time or volume); storage status display
 - "Export what can be read" on the "Can't open your data" screen
@@ -80,7 +81,7 @@ Notes:
 - GitHub Actions: lint + test + build on every push and PR; deploy `main` to GitHub Pages using `npm run build:pages`
 - From here on, each change is a branch and a PR
 - Real-device checks on the Pages URL:
-  - iPhone: install gate shows in Safari; Add to Home Screen; the app opens offline; backup through the share sheet saves to Files; the layout looks right on the real screen (notch, keyboard over the Add button)
+  - iPhone: install gate shows in Safari; Add to Home Screen; the app opens offline; backup through the share sheet saves to Files; Back up now → Save to Files → Cancel in the Files picker leaves "Last backup" unchanged (if iOS reports the share as done anyway, ask "Did you save it?" before committing); the layout looks right on the real screen (notch, keyboard over the Add button)
   - iPhone storage: add, edit, delete and undo entries, close the app fully, reopen, and confirm everything is still there (the WebKit check for the IndexedDB layer)
   - Android: installs from Chrome, opens offline, and the "Add expense" shortcut works
   - PC: installs from Chrome or Edge, opens offline in its own window, side menu and keyboard use work; move data phone → PC → phone with nothing lost
