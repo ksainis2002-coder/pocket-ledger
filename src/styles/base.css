@@ -92,6 +92,22 @@ button {
   min-width: 0;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.gear[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.picker-short {
+  display: none;
+}
+
+
 .picker {
   display: flex;
   align-items: center;
@@ -290,4 +306,17 @@ button {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* Phones: short month label ("Oct 2026"), so the title, the month picker and the gear fit on one line. */
+@media (max-width: 420px) {
+  .picker-long { display: none; }
+  .picker-short { display: inline; }
+  .picker .picker-label { min-width: 5.2em; }
+}
+
+.title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

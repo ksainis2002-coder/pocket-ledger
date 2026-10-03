@@ -10,8 +10,13 @@ export const TABS = [
 
 export type TabId = (typeof TABS)[number]["id"];
 
+/** A tab, or the Settings view (opened from the gear in the header; not in the tab bar). */
+export type ViewId = TabId | "settings";
+
+const SETTINGS_INFO = { id: "settings", label: "Settings", title: "Settings" } as const;
+
 export interface NavState {
-  tab: TabId;
+  tab: ViewId;
   /** The month shown on month-based tabs. Never later than the current month. */
   month: MonthKey;
 }
@@ -20,7 +25,8 @@ export function isTabId(value: unknown): value is TabId {
   return typeof value === "string" && TABS.some((t) => t.id === value);
 }
 
-export function tabInfo(id: TabId): (typeof TABS)[number] {
+export function tabInfo(id: ViewId): { id: ViewId; label: string; title: string } {
+  if (id === "settings") return SETTINGS_INFO;
   return TABS.find((t) => t.id === id) ?? TABS[0];
 }
 
@@ -29,9 +35,9 @@ export function initialNav(savedTab: unknown, today: DateStr): NavState {
   return { tab: isTabId(savedTab) ? savedTab : "net", month: monthOf(today) };
 }
 
-/** The month picker is hidden on Goals. */
-export function showsMonthPicker(tab: TabId): boolean {
-  return tab !== "goals";
+/** The month picker is hidden on Goals and Settings. */
+export function showsMonthPicker(tab: ViewId): boolean {
+  return tab !== "goals" && tab !== "settings";
 }
 
 export function canGoNext(state: NavState, today: DateStr): boolean {
@@ -47,7 +53,7 @@ export function nextMonth(state: NavState, today: DateStr): NavState {
   return canGoNext(state, today) ? { ...state, month: addMonths(state.month, 1) } : state;
 }
 
-export function selectTab(state: NavState, tab: TabId): NavState {
+export function selectTab(state: NavState, tab: ViewId): NavState {
   return state.tab === tab ? state : { ...state, tab };
 }
 

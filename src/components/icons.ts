@@ -14,6 +14,7 @@ const PATHS: Record<string, string[]> = {
   plus: ["M12 5v14", "M5 12h14"],
   edit: ["M4 20h4L19 9l-4-4L4 16v4z"],
   warning: ["M12 4l9 16H3z", "M12 10v4", "M12 17h.01"],
+  settings: ["M4 7h10", "M18 7h2", "M4 17h4", "M12 17h8", "M16 5v4", "M10 15v4"],
 };
 
 /** Line icons drawn with currentColor. */

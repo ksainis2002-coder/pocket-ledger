@@ -31,6 +31,8 @@ export interface AppContext {
   view(): View;
   money(cents: number): string;
   locale: string | undefined;
+  /** What kind of device this is, for install advice and the iPhone first-run line. */
+  device: { isIOS: boolean; isStandalone: boolean };
   /**
    * Run a write. On success, shows its Undo toast (or `success`). Invalid input and rule refusals go to
    * `inline` when given (so a form can show them and keep its values), else to a toast. Storage

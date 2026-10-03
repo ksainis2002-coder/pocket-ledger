@@ -32,14 +32,15 @@ if (root) {
         });
         return;
       }
+      const device = { isIOS: isIOSDevice(navigator.userAgent, navigator.maxTouchPoints ?? 0), isStandalone: isStandaloneDisplay() };
       const gate = shouldGate({
-        isIOS: isIOSDevice(navigator.userAgent, navigator.maxTouchPoints ?? 0),
-        isStandalone: isStandaloneDisplay(),
+        isIOS: device.isIOS,
+        isStandalone: device.isStandalone,
         acknowledged: settings.iosBrowserAcknowledged === true,
       });
       const start = async (banner: boolean): Promise<void> => {
         started = true;
-        await startApp(root, clock, ledger, { addExpense, ...(banner ? { banner: safariBanner() } : {}) });
+        await startApp(root, clock, ledger, { addExpense, device, ...(banner ? { banner: safariBanner() } : {}) });
       };
       if (gate === "gate") {
         showInstallGate(root, () => {

@@ -22,8 +22,9 @@ test("previous month crosses the year boundary", () => {
   assert.equal(prevMonth({ tab: "net", month: "2026-01" }).month, "2025-12");
 });
 
-test("picker is hidden only on Goals", () => {
+test("picker is hidden only on Goals and Settings", () => {
   assert.equal(showsMonthPicker("goals"), false);
+  assert.equal(showsMonthPicker("settings"), false);
   for (const t of ["net", "income", "expenses", "savings"] as const) assert.equal(showsMonthPicker(t), true);
 });
 

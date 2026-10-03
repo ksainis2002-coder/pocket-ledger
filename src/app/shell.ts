@@ -13,6 +13,7 @@ import {
   tabInfo,
   type NavState,
   type TabId,
+  type ViewId,
 } from "./navigation";
 import { BASE_PATH } from "./env";
 import { readPref, writePref } from "./prefs";
@@ -23,7 +24,7 @@ export type NavReason = "init" | "tab" | "month" | "day" | "program";
 export interface Shell {
   nav(): NavState;
   /** Switch tab from code (e.g. the "Add expense" shortcut). */
-  setTab(tab: TabId): void;
+  setTab(tab: ViewId): void;
   /** Jump to a month, never past the current one. */
   setMonth(month: MonthKey): void;
   /** Where screens are mounted. */
@@ -40,11 +41,15 @@ export function mountShell(root: HTMLElement, clock: TodayClock, onNav: (state: 
   let state: NavState = initialNav(initialTab ?? readPref("tab"), clock.get());
 
   const title = h("h1", { class: "title", id: "page-title" });
-  const monthText = h("span", { class: "picker-label", "aria-live": "polite" });
+  // Long label ("October 2026") on wider screens, short ("Oct 2026") on phones, so the gear fits.
+  const monthLong = h("span", { class: "picker-long" });
+  const monthShort = h("span", { class: "picker-short", "aria-hidden": "true" });
+  const monthText = h("span", { class: "picker-label", "aria-live": "polite" }, monthLong, monthShort);
   const prev = h("button", { class: "picker-btn", type: "button", "aria-label": "Previous month" }, icon("prev"));
   const next = h("button", { class: "picker-btn", type: "button", "aria-label": "Next month" }, icon("next"));
   const picker = h("div", { class: "picker", role: "group", "aria-label": "Month" }, prev, monthText, next);
-  const header = h("header", { class: "topbar" }, h("div", { class: "topbar-inner" }, title, picker));
+  const gear = h("button", { class: "icon-btn gear", type: "button", "aria-label": "Settings", "aria-pressed": "false" }, icon("settings"));
+  const header = h("header", { class: "topbar" }, h("div", { class: "topbar-inner" }, title, h("div", { class: "topbar-actions" }, picker, gear)));
 
   const banner = h("div", { class: "banner-slot" });
   const content = h("div", { class: "screens" });
@@ -79,7 +84,9 @@ export function mountShell(root: HTMLElement, clock: TodayClock, onNav: (state: 
     title.textContent = info.title;
     document.title = `${info.title} · Pocket Ledger`;
     picker.hidden = !showsMonthPicker(state.tab);
-    monthText.textContent = monthLabel(state.month);
+    monthLong.textContent = monthLabel(state.month);
+    monthShort.textContent = monthLabel(state.month, undefined, "short");
+    gear.setAttribute("aria-pressed", String(state.tab === "settings"));
     next.disabled = !canGoNext(state, clock.get());
     for (const btn of tabButtons) {
       const selected = btn.dataset["tab"] === state.tab;
@@ -94,13 +101,14 @@ export function mountShell(root: HTMLElement, clock: TodayClock, onNav: (state: 
     const changed = nextState !== state;
     state = nextState;
     if (tabChanged) {
-      writePref("tab", state.tab);
+      if (state.tab !== "settings") writePref("tab", state.tab);
       window.scrollTo(0, 0);
     }
     render();
     if (changed || reason === "init") onNav(state, reason);
   };
 
+  gear.addEventListener("click", () => update(selectTab(state, state.tab === "settings" ? (readPref("tab") as TabId | null) ?? "net" : "settings"), "tab"));
   prev.addEventListener("click", () => update(prevMonth(state), "month"));
   next.addEventListener("click", () => update(nextMonth(state, clock.get()), "month"));
 
