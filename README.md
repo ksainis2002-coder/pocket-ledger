@@ -19,12 +19,15 @@ Back up regularly, and always before changing phones. The app reminds you.
 - **CSV:** Settings → Export transactions as CSV gives a spreadsheet of your transactions. It isn't a backup and can't be restored.
 
 ## Develop
+Needs Node 22 or newer.
 ```bash
 npm install
-npm run dev              # local dev server
-npm run dev -- --host    # also reachable from a phone on the same Wi-Fi
+npx playwright install chromium   # once, for npm run e2e
+npm run dev                       # http://localhost:5173, rebuilds on save
+npm run dev -- --host             # also reachable from a phone on the same Wi-Fi
+npm run build && npm run preview  # production build with offline support, http://localhost:4173
 ```
-Before calling a phase done, run `npm run lint && npm run test && npm run build`.
+Before calling a phase done, run `npm run lint && npm run test && npm run build && npm run e2e`.
 
 Test data entered on `localhost` or over Wi-Fi stays at that address. Don't log real money until the app is published.
 

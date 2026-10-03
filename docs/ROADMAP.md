@@ -13,30 +13,30 @@ Notes:
 ## Phase 0 — Scaffold
 **Prompt:** "Read CLAUDE.md and docs/SPEC.md. Do Phase 0 from docs/ROADMAP.md."
 
-- Vite + React + TS (strict), ESLint, Prettier, Vitest, Playwright
+- TypeScript (strict), esbuild build and dev server, `node:test` via tsx, Playwright (see CLAUDE.md Stack)
 - `tokens.css` with light and dark palettes, taken from the prototype's colors
-- Self-hosted fonts (IBM Plex Sans, IBM Plex Mono, Bricolage Grotesque) via `@fontsource`
+- System font stacks (no font downloads)
 - App shell: header, month picker, bottom tab bar with 5 empty tabs, last tab remembered
-- vite-plugin-pwa with `registerType: "prompt"` (see SPEC App updates): manifest (name, icons, `display: standalone`, theme colors), offline caching. No auto-reload.
-- Base path read from a `BASE` env variable, default `/`. Vite `base`, manifest `start_url` and `scope` all follow it.
+- Web app manifest (name, icons, `display: standalone`, theme colors) and a build-generated service worker that precaches the app for offline use and waits for the owner before updating (SPEC App updates). No auto-reload.
+- Base path set at build time, default `/`. Asset paths, manifest `start_url` and `scope`, and the service worker scope all follow it.
 - An `npm run build:pages` script that builds with base `/pocket-ledger/` and works the same on Windows, macOS and Linux (no shell-only `BASE=… npm run build` syntax).
 - `git init` with a `main` branch (no remote)
 
-**Done when:** `npm run build && npm run preview` installs as an app in desktop Chrome, opens offline, and shows 5 tabs; the same works with `npm run build:pages && npm run preview`; and on a phone over Wi-Fi the layout looks right at phone size.
+**Done when:** `npm run e2e` passes (it checks both base paths in Chromium); `npm run build && npm run preview` installs as an app in desktop Chrome, opens offline, and shows 5 tabs; the same works with `npm run build:pages && npm run preview`; and on a phone over Wi-Fi the layout looks right at phone size.
 
 ## Phase 1 — Data layer and money logic
 **Prompt:** "Do Phase 1 from docs/ROADMAP.md."
 
-- Dexie schema v1 per SPEC, including `Goal.openingCents`, the recent-category settings and an index on `updatedAt`; repositories; `navigator.storage.persist()` on first run
+- IndexedDB schema v1 per SPEC (own layer: `Store` interface, `IdbStore`, `MemoryStore`, contract tests in Node and Chromium), including `Goal.openingCents`, the recent-category settings and an index on `updatedAt`; repositories; `navigator.storage.persist()` on first run
 - Goals and savings rules from SPEC as repository-level checks: free-savings limit on withdrawals, and refusing any edit, delete or undo that would leave goals claiming money that isn't there (imports excepted)
 - Repository functions for undo: restore the previous state of an added, edited or deleted entry, following the same rules (SPEC Undo)
-- Typed repository errors (`RuleError`, `QuotaError`, `StorageError`) and Dexie `versionchange`/`blocked` hooks exposed to the app (SPEC Storage errors, App updates)
+- Typed repository errors (`RuleError`, `QuotaError`, `StorageError`) and IndexedDB `versionchange`/`blocked` hooks exposed to the app (SPEC Storage errors, App updates)
 - Repositories refuse entry dates later than today (SPEC Dates and today)
 - `domain/money.ts`: `parseAmount` per SPEC Amount input; format with Intl
 - `domain/months.ts`: month keys, previous/next, last 6 months, local-date helpers
 - `domain/totals.ts`: month totals (including net to savings), per-category totals, all-time totals, savings balance
 - `domain/goals.ts`: `goalPlan` per SPEC Goal plan, and status
-- Unit tests for everything above, plus repository tests with fake-indexeddb, including every required test listed in SPEC Amount input, Goal plan, Undo (repository side), Storage errors (failed write) and Goals and savings rules
+- Unit tests for everything above, plus repository tests against `MemoryStore` and the store contract tests in Chromium, including every required test listed in SPEC Amount input, Goal plan, Undo (repository side), Storage errors (failed write) and Goals and savings rules
 
 **Done when:** `npm run test` covers domain logic, the SPEC's required tests for this phase, and the edge cases listed in CLAUDE.md.
 
@@ -95,7 +95,7 @@ Notes:
 - Budget history: a limit change applies from that month on, not to past months
 - Currency list limited to currencies with 2 decimal places (the cents model assumes 2)
 
-Each item is its own branch and PR. Any schema change needs a Dexie migration and a test that upgrades old data.
+Each item is its own branch and PR. Any schema change needs a schema migration and a test that upgrades old data.
 
 ---
 
