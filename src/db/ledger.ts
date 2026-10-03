@@ -1,12 +1,14 @@
 // Repositories: every write in the app goes through Ledger (SPEC Behavior rules).
 // Each write runs in one transaction: read everything, compute with pure domain functions,
 // check the Goals and savings rules, then write. Nothing else is awaited in between.
+import { buildBackup, type BackupFile, type ExportCommit } from "../domain/backup";
 import { DEFAULT_RECENT_EXPENSE_CATEGORIES, SAVINGS_CATEGORY, bumpRecent, categoriesFor, isExpenseCategory } from "../domain/categories";
 import { detectDeviceName } from "../domain/device";
 import { computeSaved } from "../domain/goals";
 import { AMOUNT_FORMAT_MESSAGE, AMOUNT_TOO_LARGE_MESSAGE, formatMoney } from "../domain/money";
 import { isValidDate, type DateStr } from "../domain/months";
 import { checkSavingsRules, freeSavingsMessage, violationMessage } from "../domain/rules";
+import { settingsAfterImport } from "../domain/sync";
 import { savingsPosition } from "../domain/totals";
 import {
   DELETE_LOG_MAX,
@@ -359,6 +361,79 @@ export class Ledger {
       const traveling = (patch.currency !== undefined && patch.currency !== s.settings.currency) || ("locale" in patch && patch.locale !== s.settings.locale);
       return { settings: patch, counted: traveling, countSettings: traveling };
     });
+  }
+
+  // ---------- Backup, restore and delete all ----------
+
+  /**
+   * Build a backup file from everything (SPEC Backup, Export steps 1 and 4). Nothing changes until
+   * `commitExport` is called, which happens only once the file has really been shared or downloaded.
+   */
+  async prepareExport(): Promise<{ file: BackupFile; commit: ExportCommit }> {
+    const data = await this.read();
+    return buildBackup(data, this.deps.now(), this.deps.newId);
+  }
+
+  /** The file was delivered: record the backup and the new state. Changes made since it was built stay unsent. */
+  commitExport(commit: ExportCommit): Promise<WriteResult> {
+    return this.change((s) => {
+      const now = this.deps.now();
+      return {
+        counted: false,
+        settings: {
+          lastBackupAt: now,
+          lastSyncAt: now,
+          stateLineage: commit.lineage.map((x) => ({ ...x })),
+          changesSinceSync: Math.max(0, s.settings.changesSinceSync - commit.changesAtBuild),
+        },
+      };
+    });
+  }
+
+  /**
+   * Replace everything with a validated backup, in one transaction (SPEC Import step 5). Traveling settings
+   * come from the file; this device keeps the rest. Never refused by the savings rules, never counted as a change.
+   * Returns how many goals had a saved amount that didn't match their movements (now fixed).
+   */
+  async importBackup(file: BackupFile): Promise<{ repairedGoals: number }> {
+    const now = this.deps.now();
+    const result = await this.store.transact(TABLES, "readwrite", async (tx) => {
+      const current = (await tx.get<Settings>("settings", "settings")) ?? this.defaultSettings();
+      let repaired = 0;
+      const goals = file.data.goals.map((g) => {
+        const saved = computeSaved(g, file.data.transactions);
+        if (saved === g.savedCents) return g;
+        repaired += 1;
+        return { ...g, savedCents: saved };
+      });
+      const settings = settingsAfterImport(current, { settings: file.data.settings, state: file.state, fromDevice: file.fromDevice, exportedAt: file.exportedAt }, now);
+      await Promise.all([tx.clear("transactions"), tx.clear("goals"), tx.clear("budgets")]);
+      await Promise.all([
+        ...file.data.transactions.map((t) => tx.put("transactions", t)),
+        ...goals.map((g) => tx.put("goals", g)),
+        ...file.data.budgets.map((b) => tx.put("budgets", b)),
+        tx.put("settings", settings),
+      ]);
+      return { repairedGoals: repaired };
+    });
+    this.lastUndo = null;
+    for (const fn of this.listeners) fn();
+    return result;
+  }
+
+  /**
+   * Delete every entry, goal and budget on this device. This device keeps its id, name, theme and install
+   * choice; everything else starts fresh, so restoring a backup straight afterwards is always safe.
+   */
+  async deleteAllData(): Promise<void> {
+    await this.store.transact(TABLES, "readwrite", async (tx) => {
+      const current = (await tx.get<Settings>("settings", "settings")) ?? this.defaultSettings();
+      const fresh: Settings = { ...this.defaultSettings(), deviceId: current.deviceId, deviceName: current.deviceName, theme: current.theme };
+      if (current.iosBrowserAcknowledged !== undefined) fresh.iosBrowserAcknowledged = current.iosBrowserAcknowledged;
+      await Promise.all([tx.clear("transactions"), tx.clear("goals"), tx.clear("budgets"), tx.put("settings", fresh)]);
+    });
+    this.lastUndo = null;
+    for (const fn of this.listeners) fn();
   }
 
   // ---------- Undo ----------

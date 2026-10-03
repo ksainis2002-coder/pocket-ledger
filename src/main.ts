@@ -28,18 +28,19 @@ if (root) {
         started = true;
         await startApp(root, clock, ledger, {
           addExpense,
-          banner: h("div", { class: "banner", role: "note" }, h("p", { class: "banner-text" }, "Preview: try anything. Entries stay in this preview on this device only.")),
+          banner: h("div", { class: "banner", role: "note" }, h("p", { class: "banner-text" }, "Preview: try anything. Entries stay in this preview on this device only, and backup and CSV files can't be saved from here.")),
         });
         return;
       }
+      const device = { isIOS: isIOSDevice(navigator.userAgent, navigator.maxTouchPoints ?? 0), isStandalone: isStandaloneDisplay() };
       const gate = shouldGate({
-        isIOS: isIOSDevice(navigator.userAgent, navigator.maxTouchPoints ?? 0),
-        isStandalone: isStandaloneDisplay(),
+        isIOS: device.isIOS,
+        isStandalone: device.isStandalone,
         acknowledged: settings.iosBrowserAcknowledged === true,
       });
       const start = async (banner: boolean): Promise<void> => {
         started = true;
-        await startApp(root, clock, ledger, { addExpense, ...(banner ? { banner: safariBanner() } : {}) });
+        await startApp(root, clock, ledger, { addExpense, device, ...(banner ? { banner: safariBanner() } : {}) });
       };
       if (gate === "gate") {
         showInstallGate(root, () => {

@@ -784,3 +784,109 @@
     margin-top: 0;
   }
 }
+
+/* ---------- Settings and restore ---------- */
+
+.seg-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.facts dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.facts dd {
+  margin: 0;
+}
+
+@media (max-width: 420px) {
+  .facts {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .facts dd {
+    margin-bottom: var(--space-2);
+  }
+}
+
+.banner-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+
+.reminder {
+  margin-bottom: var(--space-1);
+}
+
+.restore-source {
+  margin: 0;
+  font-weight: 600;
+}
+
+.restore-warning {
+  margin: 0;
+}
+
+.loss {
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: var(--space-3);
+  background: var(--bg);
+}
+
+.loss-title,
+.loss-extra {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.loss-list {
+  margin: 0;
+  padding-left: 1.1em;
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-sm);
+}
+
+.loss-more {
+  color: var(--muted);
+  list-style: none;
+  margin-left: -1.1em;
+}
+
+.warn-text {
+  color: var(--warn-ink);
+}
+
+.copy-box {
+  font: var(--text-sm) / 1.4 var(--font-mono);
+  resize: vertical;
+}
+
+.rescue-status {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.rescue-status:empty {
+  display: none;
+}
+
+#settings-install .steps {
+  font-size: var(--text-sm);
+}

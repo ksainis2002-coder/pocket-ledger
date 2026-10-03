@@ -133,7 +133,8 @@ The owner uses the app on a phone and on a PC. Each device keeps its own data. T
 - **What would be lost** is listed under the warning. The cutoff is the `at` of this device's newest state that also appears in the file's `lineage`; if none does, `lastImport.importedAt`; if there was never an import, everything. Listed: transactions with `updatedAt` after the cutoff, newest first, as "3 Oct · Eating out · €4,50 · Coffee", at most 10, then "and {N} more". Then "{K} deleted entries" (entry deletes in `deleteLog` after the cutoff) and "{G} goal or budget changes" (goals and budgets with `updatedAt` after the cutoff, plus goal and budget deletes in `deleteLog` after the cutoff), each only if above 0. A goal's `savedCents` is derived, so a contribution changes it without changing the goal's `updatedAt`; the contribution is listed as an entry.
 - Under the list: "To keep both, restore, then re-enter these from the copied list." A **"Copy list"** button copies the full list as plain text, one line per entry.
 - Buttons: **"Save a copy first"** exports this device's data as a backup file, then returns to the same preview so the owner can still restore; if they picked the wrong side, they can restore that copy. Then **"Restore anyway"**. (Sending this device's data to the other device wouldn't fix anything: without a merge, the other device would show the same warning.)
-- The older-backup warning (Backup, Import step 3) still applies.
+- **A file made on this same device** (its `fromDevice.id` is this device's `deviceId`, e.g. restoring your own older backup): the preview says "From this {deviceName} · made 3 days ago", and when it isn't safe the warning is "This backup doesn't include your latest changes. Restoring will lose them." for either reason.
+- There is no separate "older backup" warning: the lineage check and the lost list cover every case it would catch, and when a restore is safe it could only fire from the two devices' clocks disagreeing.
 - `deviceName` comes from the user agent once, on first run (iPadOS reporting as a Mac counts as iPad, as in Install gate).
 - Import stays replace-only. A real merge can come after launch if this warning shows up often.
 - Known false warnings, accepted because they err toward warning and lose nothing: an add followed by its undo still counts as a change; more than 50 exports between moves drop older states from the lineage.
@@ -182,14 +183,16 @@ When the backup reminder is due (see Backup), it shows as a banner at the top of
 - Archived goals sit in a collapsed "Archived" list below the active ones.
 
 ### Settings (gear icon in the header)
-- Currency (EUR default) and theme.
+Settings is a view of its own, opened and closed with the gear; the month picker is hidden there and no tab is selected. On phones the month picker shows a short label ("Oct 2026") so the title, picker and gear fit on one line.
+
+- Currency (EUR default; only currencies with two decimal places: EUR, USD, GBP, CHF, CAD, AUD, SEK, PLN) and theme (System, Light, Dark).
 - **Backup:** "Back up now" (export everything as JSON); "Restore from backup" (import). See Backup.
 - **Phone and PC:** "Send to my other device", "Open from my other device" and "Last moved" (see Phone and PC).
 - Export transactions as CSV (see CSV export).
 - Storage status: whether persistent storage is granted, whether the app is installed, and the last backup date ("Never" if none).
 - **Updates:** when a new version is waiting, "Update ready" with a "Reload now" button (see App updates).
-- Install-to-home-screen instructions for iPhone (Safari → Share → Add to Home Screen) and Android.
-- Delete all data (requires typing DELETE to confirm).
+- Install-to-home-screen instructions for iPhone (Safari → Share → Add to Home Screen, then open it from the home screen), Android, PC and Mac. The iPhone line shows on every device, since the PC is where you would read it before setting up the phone.
+- Delete all data (requires typing DELETE to confirm). It deletes every entry, goal and budget. This device keeps `deviceId`, `deviceName`, `theme` and `iosBrowserAcknowledged`; every other setting starts fresh (`stateLineage`, `changesSinceSync`, `deleteLog`, backup dates, snooze, last move, currency and recent categories). An empty device is always safe to restore onto, so restoring a backup straight after a delete never warns.
 
 ## Fast entry
 
@@ -350,15 +353,14 @@ interface BackupFile {
 Logic lives in a pure `backupReminder(now, settings, changedCount, totalCount)` with unit tests for each rule and for snoozing.
 
 **Import.**
-1. Pick a file. Validate it fully against the schema before touching any data: `app` and `formatVersion` match, all amounts are positive integers within the maximum (opening amounts ≥ 0), dates are valid `YYYY-MM-DD`, IDs are unique, every `goalId` points to a goal in the file, and only `save`/`withdraw` have a `goalId`. On failure, show one plain sentence with the first problem ("This file isn't a Pocket Ledger backup" or "Entry 214 has an invalid date") and change nothing.
+1. Pick a file. The file input has no `accept` filter (iOS can grey out `.json` files in the Files picker when one is set); the check below rejects anything that isn't a backup. Validate it fully against the schema before touching any data: `app` and `formatVersion` match, all amounts are positive integers within the maximum (opening amounts ≥ 0), dates are valid `YYYY-MM-DD`, IDs are unique, every `goalId` points to a goal in the file, and only `save`/`withdraw` have a `goalId`. On failure, show one plain sentence with the first problem ("This file isn't a Pocket Ledger backup" or "Entry 214 has an invalid date") and change nothing.
 2. Preview: which device it came from and when it was made ("From your iPhone · made 12 minutes ago"), counts of transactions, goals and budgets, and the date of its newest entry. Unless it is safe to restore (Phone and PC), show the warning and the list of what would be lost.
-3. If the newest `updatedAt` in the current data is later than the backup's `exportedAt`, show a warning in the preview: "This backup is older than the data on this {deviceName}. {N} entries added or changed since {date} will be lost." N is the number of current transactions with `updatedAt > exportedAt`.
-4. The preview always offers "Save a copy first" (runs Export, then returns to this preview) above the confirm button "Replace my data".
-5. Replace all tables in one IndexedDB transaction. Take the traveling settings from the file and keep everything else this device has (see Phone and PC), then apply the import rules there (`stateLineage`, counters, `deleteLog`, `lastImport`, `lastSyncAt`). The import, and the `savedCents` repair below, don't count as changes. Recompute every goal's `savedCents` from the imported movements. If any stored value differed, say so after the import: "Fixed saved amounts on 2 goals to match their movements."
-6. If free savings comes out negative after import, import anyway (it's the owner's data) and let the Savings tab warning explain it.
-7. Toast: "Backup restored".
+3. The preview always offers "Save a copy first" (runs Export, then returns to this preview) above the confirm button "Replace my data".
+4. Replace all tables in one IndexedDB transaction. Take the traveling settings from the file and keep everything else this device has (see Phone and PC), then apply the import rules there (`stateLineage`, counters, `deleteLog`, `lastImport`, `lastSyncAt`). The import, and the `savedCents` repair below, don't count as changes. Recompute every goal's `savedCents` from the imported movements. If any stored value differed, say so after the import: "Fixed saved amounts on 2 goals to match their movements."
+5. If free savings comes out negative after import, import anyway (it's the owner's data) and let the Savings tab warning explain it.
+6. Toast: "Backup restored".
 
-**Required tests:** export → delete all → import gives identical entries, goals, budgets and traveling settings (including `lastBackupAt` handling, `fromDevice`, and this device keeping its own per-device settings); each validation failure leaves data unchanged; the "older backup" warning count; `savedCents` repair on import.
+**Required tests:** export → delete all → import gives identical entries, goals, budgets and traveling settings (including `lastBackupAt` handling, `fromDevice`, and this device keeping its own per-device settings); each validation failure leaves data unchanged; the same-device wording ("From this …", "This backup doesn't include your latest changes…"); `savedCents` repair on import.
 
 ## CSV export
 
@@ -366,12 +368,12 @@ For opening transactions in a spreadsheet. It is not a backup and can't be impor
 
 - File: `pocket-ledger-transactions-YYYY-MM-DD.csv`, delivered the same way as a backup (share sheet, else download).
 - UTF-8 with a BOM, CRLF line endings.
-- Columns: Date, Type, Category, Amount, Note, Goal. Type is Income, Expense, Into savings or Taken out. Goal is the goal's name or empty.
+- Columns: Date, Type, Category, Amount, Note, Goal. Date is `YYYY-MM-DD` (Excel in any language reads it as a real date and sorts it correctly). Type is Income, Expense, Into savings or Taken out. Goal is the goal's name or empty. Rows are oldest first.
 - Delimiter: `;` when the locale's decimal mark is a comma (as in Greek), otherwise `,`.
 - Amounts use the locale's decimal mark, with no thousands separator and no currency symbol (`12,50` in Greek).
 - Fields containing the delimiter, a quote or a line break are quoted, with quotes doubled.
 - Formula injection: any cell starting with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'`.
-- Required tests: Greek locale output (`;`, `12,50`, BOM); English locale output (`,`, `12.50`); a note with a delimiter and quotes; a note starting with `=`; Greek characters survive.
+- Required tests: Greek locale output (`;`, `12,50`, BOM, `YYYY-MM-DD`); English locale output (`,`, `12.50`); a note with a delimiter and quotes; a note starting with `=`; Greek characters survive; an e2e test that downloads the CSV and reads it back. Opening it in Excel is checked on the PC in Phase 4.
 
 ## Behavior rules
 

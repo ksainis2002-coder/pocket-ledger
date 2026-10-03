@@ -63,3 +63,14 @@
 | 2026-10-03 | Money and amount fields follow the device's locale (12,50 € on a Greek phone); dates and month names are always English (`en-GB`: "3 Oct", "October 2026") | The app's words are English, so Greek month names would mix two languages; the decimal comma is what a Greek keyboard types |
 | 2026-10-03 | Pills use their own text tokens (`--warn-ink`, `--bad-ink`) on a tint mixed over the surface; a test computes WCAG contrast from tokens.css for every text pair in both themes | Phase 2's amber pill was 4.12:1, under AA; the test keeps every pair at 4.5:1 or more |
 | 2026-10-03 | A reached goal's main button is Archive; the archive sheet gives "I spent it" and "Keep it in savings" equal weight | Avoids inviting more money into a finished goal, and a quick tap shouldn't record a withdrawal |
+| 2026-10-04 | Settings is its own view behind a gear in the header, not a sixth tab | Five tabs fit a phone's tab bar; settings are visited rarely |
+| 2026-10-04 | Export records the new state only after the file is delivered (share resolved or download started), and subtracts only the changes counted when the file was built | A cancelled share must change nothing, and edits made while the share sheet was open must stay unsent |
+| 2026-10-04 | Import never refuses (savings rules don't apply) and isn't counted; it repairs `savedCents` and reports how many goals it fixed | It's the owner's own data; refusing would leave no way back |
+| 2026-10-04 | The restore file picker has no `accept` filter | iOS can grey out .json files in the Files picker when one is set; the validator rejects anything that isn't a backup |
+| 2026-10-04 | CSV dates are `YYYY-MM-DD` | Excel in Greek reads it as a real date and sorts it; "3 Oct" would come through as text |
+| 2026-10-04 | Delete all keeps device id, name, theme and the install choice, and resets everything else | Restoring straight afterwards is always safe, and the device keeps its identity for moving data |
+| 2026-10-04 | "Export what can be read" opens the database without a version and reads each table on its own | Works when a normal open fails, never upgrades or creates a database, and saves what it can |
+| 2026-10-04 | The month picker uses a short label on phones (≤420px) | The title, picker and gear must fit on one line at 375px |
+| 2026-10-04 | No "older backup" line in the restore preview; the lineage warning and lost list replace it | They catch every case it did; when a restore is safe it could only fire from clock skew between devices, and showing both repeated the same entries |
+| 2026-10-04 | A file made on this same device says "From this {device}" and "This backup doesn't include your latest changes" | "Your Linux PC never received" makes no sense when restoring your own older backup on that PC |
+| 2026-10-04 | The Install card always lists the iPhone steps | The PC is where you'd read them before setting up the phone |

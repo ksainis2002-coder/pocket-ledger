@@ -1,7 +1,10 @@
 // Full-screen messages: the install gate, and storage problems (SPEC Storage errors, App updates).
 import { h, replaceChildren } from "../components/dom";
 import { openSheet } from "../components/sheet";
+import { rescueExport } from "../db/rescue";
+import { dateOf } from "../domain/months";
 import { BASE_PATH } from "./env";
+import { backupAsFile, deliverFile } from "./transfer";
 import { reloadApp } from "./updates";
 
 function fullScreen(root: HTMLElement, ...children: (Node | null)[]): void {
@@ -23,7 +26,31 @@ export function showCantOpen(root: HTMLElement): void {
     h("h1", {}, "Can't open your data"),
     h("p", {}, "Pocket Ledger couldn't open its storage on this device. Your data hasn't been changed. Reload to try again. If it keeps happening, check that the browser isn't in private mode and has space left."),
     h("button", { type: "button", class: "btn btn-primary btn-block", onclick: reloadApp }, "Reload"),
+    rescueButton(),
   );
+}
+
+/** SPEC Storage errors: "Export what can be read" builds a normal backup file from whatever is readable. */
+function rescueButton(): HTMLElement {
+  const status = h("p", { class: "rescue-status", "aria-live": "polite" });
+  const btn = h("button", { type: "button", class: "btn btn-block", id: "rescue-export" }, "Export what can be read");
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    status.textContent = "Reading…";
+    const r = await rescueExport().catch(() => null);
+    if (!r) {
+      status.textContent = "Nothing could be read from this device's storage.";
+      btn.disabled = false;
+      return;
+    }
+    const result = await deliverFile(backupAsFile(r.file, dateOf(new Date())), "File ready");
+    status.textContent =
+      result === "delivered"
+        ? `Saved ${r.file.data.transactions.length} entries, ${r.file.data.goals.length} goals and ${r.file.data.budgets.length} budgets.${r.missing.length ? ` Couldn't read: ${r.missing.join(", ")}.` : ""}`
+        : "";
+    btn.disabled = false;
+  });
+  return h("div", { class: "stack" }, btn, status);
 }
 
 export function showUpdated(root: HTMLElement): void {

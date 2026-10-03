@@ -6,13 +6,16 @@ import { createGoalsScreen } from "../features/goals/goals";
 import { createIncomeScreen } from "../features/income/income";
 import { createNetScreen } from "../features/net/net";
 import { createSavingsScreen } from "../features/savings/savings";
+import { createSettingsScreen } from "../features/settings/settings";
 import type { LedgerData } from "../domain/types";
 import { makeWrite, moneyFor, type AppContext, type Screen, type View } from "./context";
-import type { TabId } from "./navigation";
+import type { ViewId } from "./navigation";
+import { applyTheme } from "./theme";
 import { mountShell, type NavReason, type Shell } from "./shell";
 import type { TodayClock } from "./today";
 
-const FACTORIES: Record<TabId, (ctx: AppContext) => Screen> = {
+const FACTORIES: Record<ViewId, (ctx: AppContext) => Screen> = {
+  settings: createSettingsScreen,
   net: createNetScreen,
   income: createIncomeScreen,
   expenses: createExpensesScreen,
@@ -25,12 +28,14 @@ export interface StartOptions {
   banner?: HTMLElement;
   /** Opened from the "Add expense" shortcut. */
   addExpense?: boolean;
+  device?: { isIOS: boolean; isStandalone: boolean };
 }
 
 export async function startApp(root: HTMLElement, clock: TodayClock, ledger: Ledger, opts: StartOptions = {}): Promise<void> {
   let data: LedgerData = await ledger.read();
   const toast = createToaster();
-  const screens = new Map<TabId, Screen>();
+  const screens = new Map<ViewId, Screen>();
+  applyTheme(data.settings.theme);
   let shell: Shell | null = null;
 
   const view = (): View => ({ data, month: shell?.nav().month ?? clock.get().slice(0, 7), today: clock.get() });
@@ -45,10 +50,11 @@ export async function startApp(root: HTMLElement, clock: TodayClock, ledger: Led
     view,
     money: (cents) => moneyFor(data)(cents),
     locale: undefined,
+    device: opts.device ?? { isIOS: false, isStandalone: false },
     write: makeWrite(ledger, toast),
   };
 
-  const show = (tab: TabId, reason: NavReason): void => {
+  const show = (tab: ViewId, reason: NavReason): void => {
     let screen = screens.get(tab);
     if (!screen) {
       screen = FACTORIES[tab](ctx);
@@ -79,6 +85,7 @@ export async function startApp(root: HTMLElement, clock: TodayClock, ledger: Led
       toast.show("Couldn't read your data. Reload the app.", { kind: "error" });
       return;
     }
+    applyTheme(data.settings.theme);
     if (shell) screens.get(shell.nav().tab)?.update(view());
   });
 }
