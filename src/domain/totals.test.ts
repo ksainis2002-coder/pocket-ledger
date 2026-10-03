@@ -59,3 +59,21 @@ test("all-time totals", () => {
   const list = [tx("income", 100, "2025-01-01"), tx("income", 200, "2026-10-01"), tx("expense", 50, "2026-02-28"), tx("save", 30, "2026-02-28")];
   assert.deepEqual(allTimeTotals(list, [goal({ openingCents: 7 })]), { earned: 300, spent: 50, savingsBalance: 37 });
 });
+
+test("month totals across 31 Dec -> 1 Jan stay in their own years", () => {
+  const list = [tx("expense", 1_000, "2026-12-31"), tx("expense", 2_000, "2027-01-01"), tx("income", 50_000, "2026-12-31"), tx("income", 70_000, "2027-01-01")];
+  const dec = monthTotals(list, "2026-12");
+  const jan = monthTotals(list, "2027-01");
+  assert.equal(dec.expenses, 1_000);
+  assert.equal(dec.income, 50_000);
+  assert.equal(jan.expenses, 2_000);
+  assert.equal(jan.income, 70_000);
+  assert.equal(monthTotals(list, "2026-01").expenses, 0, "same month number, other year");
+});
+
+test("1,000 × €0,01 totals exactly €10,00", () => {
+  const list = Array.from({ length: 1_000 }, () => tx("expense", 1, "2026-10-03"));
+  assert.equal(monthTotals(list, "2026-10").expenses, 1_000);
+  const cents = Array.from({ length: 1_000 }, () => tx("save", 1, "2026-10-03"));
+  assert.equal(savingsPosition(cents, []).balance, 1_000);
+});

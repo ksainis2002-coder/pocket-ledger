@@ -106,6 +106,15 @@ test("SPEC Dates: a date one day after today is refused; today is accepted", asy
   await ledger.createGoal({ name: "Car", targetCents: 500_000, openingCents: 0, dueDate: "2028-06-30" });
 });
 
+test("repository date check: 29 Feb accepted in 2028, refused in 2027; 30 Feb always refused", async () => {
+  const { ledger } = await make({ today: "2028-03-15" });
+  await ledger.addEntry({ kind: "expense", amountCents: 100, category: "Other", date: "2028-02-29" });
+  await rejectsWith(ledger.addEntry({ kind: "expense", amountCents: 100, category: "Other", date: "2027-02-29" }), InputError, "Enter a valid date.");
+  await rejectsWith(ledger.addEntry({ kind: "expense", amountCents: 100, category: "Other", date: "2028-02-30" }), InputError, "Enter a valid date.");
+  await rejectsWith(ledger.createGoal({ name: "Car", targetCents: 100, openingCents: 0, dueDate: "2029-02-29" }), InputError, "Enter a valid date.");
+  await ledger.createGoal({ name: "Car", targetCents: 100, openingCents: 0, dueDate: "2032-02-29" });
+});
+
 test("invariant: savedCents follows add, edit and delete of linked movements", async () => {
   const { ledger } = await make();
   const { goalId } = await ledger.createGoal({ name: "Holiday", targetCents: 100_000, openingCents: 10_000 });

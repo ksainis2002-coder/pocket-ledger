@@ -53,6 +53,7 @@ Notes:
 - "Today" refreshed on visibility, focus and every minute (SPEC Dates and today); date pickers capped at today
 - Net tab with stats, all-time figures and the 6-month SVG chart using net to savings, with a zero line and a hidden table as the text alternative
 - Empty states on every tab
+- Speed check (e2e, real IndexedDB in Chromium): seed 10,000 transactions and 20 goals, then time an add, an edit and an undo; each under 150 ms. If it misses, read only savings movements and goals for the rules check and write single entries directly.
 - Playwright smoke test at 375×812: add salary, an expense (amount, chip, Enter), a saving and a goal contribution, then check the Net figures; delete the expense and undo it
 
 **Done when:** all tabs work end to end in the browser, an expense can be logged in 3 taps, the install gate logic passes its unit tests (it's simulated in tests, since a real iPhone check needs HTTPS), and `npm run screenshots` output for every tab, form and sheet has been reviewed.
@@ -80,7 +81,7 @@ Notes:
 - GitHub Actions: lint + test + build on every push and PR; deploy `main` to GitHub Pages using `npm run build:pages`
 - From here on, each change is a branch and a PR
 - Real-device checks on the Pages URL:
-  - iPhone: install gate shows in Safari; Add to Home Screen; the app opens offline; backup through the share sheet saves to Files; the layout looks right on the real screen (notch, keyboard over the Add button)
+  - iPhone: install gate shows in Safari; Add to Home Screen; the app opens offline; backup through the share sheet saves to Files; Back up now → Save to Files → Cancel in the Files picker leaves "Last backup" unchanged (if iOS reports the share as done anyway, ask "Did you save it?" before committing); the layout looks right on the real screen (notch, keyboard over the Add button)
   - iPhone storage: add, edit, delete and undo entries, close the app fully, reopen, and confirm everything is still there (the WebKit check for the IndexedDB layer)
   - Android: installs from Chrome, opens offline, and the "Add expense" shortcut works
   - PC: installs from Chrome or Edge, opens offline in its own window, side menu and keyboard use work; move data phone → PC → phone with nothing lost
