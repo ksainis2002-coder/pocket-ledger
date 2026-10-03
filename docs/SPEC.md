@@ -54,6 +54,7 @@ interface Goal {
 interface Budget {
   category: string;      // primary key; one budget per expense category
   limitCents: number;
+  updatedAt: number;
 }
 
 interface Settings {
@@ -66,10 +67,9 @@ interface Settings {
   iosBrowserAcknowledged?: boolean; // owner chose "Use in Safari anyway" (see Install gate)
   deviceId: string;              // crypto.randomUUID(), created on first run; never changes
   deviceName: string;            // "iPhone", "iPad", "Android phone", "Android tablet", "Windows PC", "Mac", "Chromebook", "Linux PC", or "device"
-  stateLineage: string[];        // ids of the data states this device has held, oldest first, max 50; last = current state. Empty until the first export or import.
-  changesSinceSync: number;      // writes (add, edit, delete, undo, goal and budget changes) since the last export or import; starts at 0
-  deletesSinceImport: number;    // entries deleted since the last import (or since first run); starts at 0
-  goalBudgetChangesSinceImport: number; // goal and budget writes (create, edit, archive, delete) since the last import; starts at 0
+  stateLineage: { id: string; at: number }[]; // data states this device has held, oldest first, max 50; last = current state. `at` = when this device took it on (its export, or its import). Empty until the first export or import.
+  changesSinceSync: number;      // counted writes (see Phone and PC) since the last export or import; starts at 0
+  deleteLog: { at: number; what: "entry" | "goal" | "budget" }[]; // deletes since the last import, max 2000; cleared on import
   lastSyncAt?: number;           // epoch ms of the last export or import
   lastImport?: { fromDeviceName: string; exportedAt: number; importedAt: number };
   recentExpenseCategories: string[]; // most recent first, max 4; default ["Groceries","Eating out","Transport","Shopping"]
@@ -121,20 +121,24 @@ The owner uses the app on a phone and on a PC. Each device keeps its own data. T
 
 **Not losing changes.** Import replaces everything, so anything on this device that the other device never received would be lost. A counter alone isn't enough: a routine backup on this device, or a file that was sent but never opened on the other side, would reset it. So every data state gets an id, and files carry their history.
 
-- **States.** Export gives the data a state id. If `changesSinceSync > 0` or `stateLineage` is empty, Export creates a new id (`crypto.randomUUID()`), appends it to `stateLineage` (keeping the last 50), and resets `changesSinceSync` to 0. If nothing changed since the last export or import, Export reuses the current id, so repeated backups don't create new states.
+- **States.** Export gives the data a state id. If `changesSinceSync > 0` or `stateLineage` is empty, Export creates a new state `{ id: crypto.randomUUID(), at: now }`, appends it to `stateLineage` (keeping the last 50), and resets `changesSinceSync` to 0. If nothing changed since the last export or import, Export reuses the current state, so repeated backups don't create new states.
 - **Files.** Every backup file carries `state: { id, lineage }`, where `lineage` is the sender's `stateLineage` (it ends with `id`).
-- **Import.** After a successful import: `stateLineage` = the file's `lineage`, `changesSinceSync` = 0, `deletesSinceImport` = 0, `lastImport` and `lastSyncAt` are set.
+- **Import.** After a successful import: `stateLineage` = the file's `lineage`, with the newest state's `at` set to this device's import time; `changesSinceSync` = 0; `deleteLog` = []; `lastImport` and `lastSyncAt` are set.
+- **What counts as a change** (raises `changesSinceSync` by 1): adding, editing or deleting an entry; undo; creating, editing, archiving, unarchiving or deleting a goal; goal Add and Take out; setting or removing a budget; changing the currency or locale. **Not counted:** the import itself, the `savedCents` repair inside import, schema migrations, the recent-category lists, and per-device settings.
+- **Which settings travel with the data:** `currency`, `locale`, `recentExpenseCategories`, `recentIncomeSource`. Export puts only these (plus `schemaVersion`) in `data.settings`; import takes them from the file. **Everything else stays on the device:** `theme`, `deviceId`, `deviceName`, `iosBrowserAcknowledged`, `lastBackupAt`, `backupSnoozedUntil`, and all the sync fields (`stateLineage`, `changesSinceSync`, `deleteLog`, `lastSyncAt`, `lastImport`).
 - **Safe to restore** when any of these is true: this device has no entries, goals or budgets; or `changesSinceSync` is 0 **and** this device's current state id (last of `stateLineage`) is in the file's `lineage`, which means the other device received everything this one had.
 - **Otherwise the preview warns**, above the confirm button, with one of:
   - `changesSinceSync > 0`: "You made {N} changes on this {deviceName} since you last sent or received data. Restoring will lose them."
   - otherwise: "This {deviceName} has data your {fromDevice.name} never received. Restoring will lose it." (A backup made here was never opened there, or a file from here was never opened there.)
-- **What would be lost** is listed under the warning: transactions on this device with `updatedAt` after `lastImport.importedAt` (all of them if there was never an import), newest first, as "3 Oct · Eating out · €4,50 · Coffee", at most 10, then "and {N} more". Then "{K} deleted entries" from `deletesSinceImport` if K > 0, and "{G} goal or budget changes" from `goalBudgetChangesSinceImport` if G > 0 (a goal contribution is an entry, so it is listed, not counted here). A **"Copy list"** button copies the full list as plain text, one line per entry, so it can be re-entered after restoring.
-- Buttons: "Send them first" (runs Export from this device) and "Restore anyway".
+- **What would be lost** is listed under the warning. The cutoff is the `at` of this device's newest state that also appears in the file's `lineage`; if none does, `lastImport.importedAt`; if there was never an import, everything. Listed: transactions with `updatedAt` after the cutoff, newest first, as "3 Oct · Eating out · €4,50 · Coffee", at most 10, then "and {N} more". Then "{K} deleted entries" (entry deletes in `deleteLog` after the cutoff) and "{G} goal or budget changes" (goals and budgets with `updatedAt` after the cutoff, plus goal and budget deletes in `deleteLog` after the cutoff), each only if above 0. A goal's `savedCents` is derived, so a contribution changes it without changing the goal's `updatedAt`; the contribution is listed as an entry.
+- Under the list: "To keep both, restore, then re-enter these from the copied list." A **"Copy list"** button copies the full list as plain text, one line per entry.
+- Buttons: **"Save a copy first"** exports this device's data as a backup file, then returns to the same preview so the owner can still restore; if they picked the wrong side, they can restore that copy. Then **"Restore anyway"**. (Sending this device's data to the other device wouldn't fix anything: without a merge, the other device would show the same warning.)
 - The older-backup warning (Backup, Import step 3) still applies.
 - `deviceName` comes from the user agent once, on first run (iPadOS reporting as a Mac counts as iPad, as in Install gate).
 - Import stays replace-only. A real merge can come after launch if this warning shows up often.
+- Known false warnings, accepted because they err toward warning and lose nothing: an add followed by its undo still counts as a change; more than 50 exports between moves drop older states from the lineage.
 
-**Required tests:** `changesSinceSync` counts adds, edits, deletes, undos and goal and budget changes; Export creates a new state only when something changed, and reuses it otherwise; import adopts the file's lineage and resets the counters; no warning on a clean round trip (PC → phone → edit → PC); warning when this device made a routine backup after changing data and then imports the other device's file; warning when a file sent from here was never opened on the other device; warning when `changesSinceSync > 0`; no warning on a device with no data; the "what would be lost" list (cap of 10, "and N more", deleted count, goal/budget count) and "Copy list" text; `deviceName` detection for each listed device; the side menu appears at 900px and the bottom bar below it; no sideways scroll at 1280×800 and 1920×1080.
+**Required tests:** each counted and not-counted write above; Export creates a new state only when something changed, and reuses it otherwise; import then export reuses the file's state id; no warning on a clean round trip (PC → phone → edit → PC); warning when this device made a routine backup after changing data and then imports the other device's file; warning when a file sent from here was never opened on the other device; warning when `changesSinceSync > 0`; no warning on a device with no data; the cutoff uses the newest shared state's `at` (import Monday, send Wednesday and opened, edit Thursday: only Thursday's entries are listed); the lost list (cap of 10, "and N more", entry deletes, goal and budget edits and deletes, including a budget edit and a budget delete) and "Copy list" text; after an import, the device's theme, device fields and backup dates are unchanged and the traveling settings come from the file; `deviceName` detection for each listed device; the side menu appears at 900px and the bottom bar below it; no sideways scroll at 1280×800 and 1920×1080.
 
 ## Screens
 
@@ -321,8 +325,13 @@ interface BackupFile {
   schemaVersion: number;
   exportedAt: number;    // epoch ms
   fromDevice: { id: string; name: string };
-  state: { id: string; lineage: string[] }; // see Phone and PC
-  data: { transactions: Transaction[]; goals: Goal[]; budgets: Budget[]; settings: Settings };
+  state: { id: string; lineage: { id: string; at: number }[] }; // see Phone and PC
+  data: {
+    transactions: Transaction[];
+    goals: Goal[];
+    budgets: Budget[];
+    settings: { schemaVersion: number; currency: string; locale?: string; recentExpenseCategories: string[]; recentIncomeSource?: string }; // traveling settings only
+  };
 }
 ```
 
@@ -343,12 +352,12 @@ Logic lives in a pure `backupReminder(now, settings, changedCount, totalCount)` 
 1. Pick a file. Validate it fully against the schema before touching any data: `app` and `formatVersion` match, all amounts are positive integers within the maximum (opening amounts ≥ 0), dates are valid `YYYY-MM-DD`, IDs are unique, every `goalId` points to a goal in the file, and only `save`/`withdraw` have a `goalId`. On failure, show one plain sentence with the first problem ("This file isn't a Pocket Ledger backup" or "Entry 214 has an invalid date") and change nothing.
 2. Preview: which device it came from and when it was made ("From your iPhone · made 12 minutes ago"), counts of transactions, goals and budgets, and the date of its newest entry. Unless it is safe to restore (Phone and PC), show the warning and the list of what would be lost.
 3. If the newest `updatedAt` in the current data is later than the backup's `exportedAt`, show a warning in the preview: "This backup is older than the data on this {deviceName}. {N} entries added or changed since {date} will be lost." N is the number of current transactions with `updatedAt > exportedAt`.
-4. The preview always offers "Back up current data first" (runs Export) above the confirm button "Replace my data".
-5. Replace all tables in one IndexedDB transaction. Keep this device's own `deviceId`, `deviceName` and install-related settings; take everything else from the file. Then apply the import rules in Phone and PC (`stateLineage`, counters, `lastImport`, `lastSyncAt`). Recompute every goal's `savedCents` from the imported movements. If any stored value differed, say so after the import: "Fixed saved amounts on 2 goals to match their movements."
+4. The preview always offers "Save a copy first" (runs Export, then returns to this preview) above the confirm button "Replace my data".
+5. Replace all tables in one IndexedDB transaction. Take the traveling settings from the file and keep everything else this device has (see Phone and PC), then apply the import rules there (`stateLineage`, counters, `deleteLog`, `lastImport`, `lastSyncAt`). The import, and the `savedCents` repair below, don't count as changes. Recompute every goal's `savedCents` from the imported movements. If any stored value differed, say so after the import: "Fixed saved amounts on 2 goals to match their movements."
 6. If free savings comes out negative after import, import anyway (it's the owner's data) and let the Savings tab warning explain it.
 7. Toast: "Backup restored".
 
-**Required tests:** export → delete all → import gives identical data (including `lastBackupAt` handling, `fromDevice`, and this device keeping its own `deviceId` and `deviceName`); each validation failure leaves data unchanged; the "older backup" warning count; `savedCents` repair on import.
+**Required tests:** export → delete all → import gives identical entries, goals, budgets and traveling settings (including `lastBackupAt` handling, `fromDevice`, and this device keeping its own per-device settings); each validation failure leaves data unchanged; the "older backup" warning count; `savedCents` repair on import.
 
 ## CSV export
 

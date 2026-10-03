@@ -32,7 +32,7 @@ Notes:
 - Repository functions for undo: restore the previous state of an added, edited or deleted entry, following the same rules (SPEC Undo)
 - Typed repository errors (`RuleError`, `QuotaError`, `StorageError`) and IndexedDB `versionchange`/`blocked` hooks exposed to the app (SPEC Storage errors, App updates)
 - Repositories refuse entry dates later than today (SPEC Dates and today)
-- Settings fields for Phone and PC (`deviceId`, `deviceName` from the user agent, `stateLineage`, `changesSinceSync`, `deletesSinceImport`, `lastSyncAt`, `lastImport`); every repository write updates the counters in the same transaction; pure `restoreSafety()` and "what would be lost" functions in `src/domain/` with their SPEC tests
+- Settings fields for Phone and PC (`deviceId`, `deviceName` from the user agent, `stateLineage` with `{ id, at }`, `changesSinceSync`, `deleteLog`, `lastSyncAt`, `lastImport`) and `Budget.updatedAt`; every counted repository write updates them in the same transaction; pure `nextExportState()`, `restoreSafety()`, `lossCutoff()`, `lostSince()`, `settingsForExport()` and `settingsAfterImport()` in `src/domain/sync.ts` with their SPEC tests
 - `domain/money.ts`: `parseAmount` per SPEC Amount input; format with Intl
 - `domain/months.ts`: month keys, previous/next, last 6 months, local-date helpers
 - `domain/totals.ts`: month totals (including net to savings), per-category totals, all-time totals, savings balance
@@ -62,7 +62,7 @@ Notes:
 
 - Settings screen: currency, theme
 - JSON export and import (schema-validated, preview, confirm) per SPEC Backup
-- "Phone and PC" in Settings per SPEC: Send to my other device, Open from my other device, Last moved, the state lineage in exported files, the unsent-changes warning with the list of what would be lost and "Copy list", PC install hint
+- "Phone and PC" in Settings per SPEC: Send to my other device, Open from my other device, Last moved, the state lineage in exported files, the unsent-changes warning with the list of what would be lost, "Copy list" and "Save a copy first", PC install hint
 - CSV export per SPEC CSV export (Greek Excel friendly)
 - Backup reminder per SPEC (time or volume); storage status display
 - "Export what can be read" on the "Can't open your data" screen
