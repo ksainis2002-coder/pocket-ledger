@@ -39,7 +39,7 @@ Notes:
 - `domain/goals.ts`: `goalPlan` per SPEC Goal plan, and status
 - Unit tests for everything above, plus repository tests against `MemoryStore` and the store contract tests in Chromium, including every required test listed in SPEC Amount input, Goal plan, Undo (repository side), Storage errors (failed write) and Goals and savings rules
 
-**Done when:** `npm run test` covers domain logic, the SPEC's required tests for this phase, and the edge cases listed in CLAUDE.md.
+**Done when:** `npm run test` covers domain logic, the SPEC's required tests for this phase, and the edge cases listed in CLAUDE.md; `npm run e2e` runs the store contract against IndexedDB in Chromium and confirms settings are created at startup.
 
 ## Phase 2 — Core screens
 **Prompt:** "Do Phase 2 from docs/ROADMAP.md. Use prototype/pocket-ledger-prototype.html as the behavior reference, minus the Don't port list in CLAUDE.md."

@@ -65,10 +65,11 @@ interface Settings {
   backupSnoozedUntil?: number;  // epoch ms; hides the backup reminder until then
   iosBrowserAcknowledged?: boolean; // owner chose "Use in Safari anyway" (see Install gate)
   deviceId: string;              // crypto.randomUUID(), created on first run; never changes
-  deviceName: string;            // "iPhone", "iPad", "Android phone", "Windows PC", "Mac", "Linux PC", "this device"
+  deviceName: string;            // "iPhone", "iPad", "Android phone", "Android tablet", "Windows PC", "Mac", "Chromebook", "Linux PC", or "device"
   stateLineage: string[];        // ids of the data states this device has held, oldest first, max 50; last = current state. Empty until the first export or import.
   changesSinceSync: number;      // writes (add, edit, delete, undo, goal and budget changes) since the last export or import; starts at 0
   deletesSinceImport: number;    // entries deleted since the last import (or since first run); starts at 0
+  goalBudgetChangesSinceImport: number; // goal and budget writes (create, edit, archive, delete) since the last import; starts at 0
   lastSyncAt?: number;           // epoch ms of the last export or import
   lastImport?: { fromDeviceName: string; exportedAt: number; importedAt: number };
   recentExpenseCategories: string[]; // most recent first, max 4; default ["Groceries","Eating out","Transport","Shopping"]
@@ -127,7 +128,7 @@ The owner uses the app on a phone and on a PC. Each device keeps its own data. T
 - **Otherwise the preview warns**, above the confirm button, with one of:
   - `changesSinceSync > 0`: "You made {N} changes on this {deviceName} since you last sent or received data. Restoring will lose them."
   - otherwise: "This {deviceName} has data your {fromDevice.name} never received. Restoring will lose it." (A backup made here was never opened there, or a file from here was never opened there.)
-- **What would be lost** is listed under the warning: transactions on this device with `updatedAt` after `lastImport.importedAt` (all of them if there was never an import), newest first, as "3 Oct · Eating out · €4,50 · Coffee", at most 10, then "and {N} more". Then "{K} deleted entries" from `deletesSinceImport` if K > 0, and "{G} goal or budget changes" if any goal or budget changed after `lastImport.importedAt`. A **"Copy list"** button copies the full list as plain text, one line per entry, so it can be re-entered after restoring.
+- **What would be lost** is listed under the warning: transactions on this device with `updatedAt` after `lastImport.importedAt` (all of them if there was never an import), newest first, as "3 Oct · Eating out · €4,50 · Coffee", at most 10, then "and {N} more". Then "{K} deleted entries" from `deletesSinceImport` if K > 0, and "{G} goal or budget changes" from `goalBudgetChangesSinceImport` if G > 0 (a goal contribution is an entry, so it is listed, not counted here). A **"Copy list"** button copies the full list as plain text, one line per entry, so it can be re-entered after restoring.
 - Buttons: "Send them first" (runs Export from this device) and "Restore anyway".
 - The older-backup warning (Backup, Import step 3) still applies.
 - `deviceName` comes from the user agent once, on first run (iPadOS reporting as a Mac counts as iPad, as in Install gate).
@@ -260,7 +261,7 @@ Single-entry changes happen at once and can be undone, instead of asking first.
 
 ## Storage errors
 
-- **Repository errors** are typed: `RuleError` (a Goals and savings rule), `QuotaError` (storage full), `StorageError` (anything else). Components show the message; they never see raw IndexedDB errors.
+- **Repository errors** are typed: `InputError` (invalid input such as a future date or a bad amount), `RuleError` (a Goals and savings rule), `QuotaError` (storage full), `StorageError` (anything else). Components show the message; they never see raw IndexedDB errors.
 - **A write fails:** nothing is cleared. The form keeps its values, and a toast says "Couldn't save. Your entry is still in the form." For `QuotaError`: "Storage is full. Export a backup, then delete old entries."
 - **The database won't open** (blocked, unavailable, `VersionError`, corrupted): show a full-screen message instead of the tabs: "Can't open your data" with "Reload" and, from Phase 3, "Export what can be read". That export reads each table on its own, skips tables that fail, and builds a normal backup file with whatever it read.
 - Required tests: a simulated failed write leaves data unchanged and returns the right error type; a failed add keeps the form values.
@@ -281,7 +282,8 @@ All of these are enforced in repository functions in `src/db/`, inside one Index
 **Limits on taking money out.**
 - "Take out" on a goal can't exceed that goal's `savedCents`. Message: "This goal only has €X."
 - "Take out" on the Savings tab can't exceed free savings. Message: "Only €X is free. The rest is set aside for goals. To use it, take it out of a goal."
-- Any add, edit, delete or undo that would make free savings or the savings balance negative is refused with a message naming the shortfall. Example: deleting an old general `save` of €200 when free savings is €150 gives "This would leave your savings €50 short of what's set aside for goals."
+- Any add, edit, delete or undo that would make free savings or the savings balance negative is refused with a message naming the shortfall. Example: deleting an old general `save` of €200 when free savings is €150 gives "This would leave your savings €50 short of what's set aside for goals." When nothing would be set aside afterwards, the message is "This would leave your savings balance €{X} below zero."
+- If imported data already left free savings or the balance negative, a write is refused only when it makes them worse, so unrelated changes still work.
 - Refusals happen before any write and leave data unchanged.
 
 **Editing linked movements.** Amount, date and note can be edited; the goal link and the kind can't. To move money to a different goal, delete the movement and add it again. An edit that would make the goal's `savedCents` negative is refused.
