@@ -1,0 +1,27 @@
+{
+  "name": "pocket-ledger",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Private personal-finance PWA. All data stays on the device.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "build:pages": "node scripts/build.mjs --base=/pocket-ledger/",
+    "preview": "node scripts/serve.mjs",
+    "test": "node --import tsx --test \"src/**/*.test.ts\" \"scripts/**/*.test.mjs\"",
+    "e2e": "node --test --test-concurrency=1 \"e2e/**/*.test.mjs\"",
+    "lint": "tsc --noEmit && node scripts/lint.mjs",
+    "screenshots": "node e2e/screenshots.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "esbuild": "0.28.2",
+    "playwright": "1.56.0",
+    "tsx": "4.23.12",
+    "typescript": "6.0.3"
+  }
+}

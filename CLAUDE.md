@@ -24,29 +24,37 @@ There is no import of prototype data.
 
 ## Non-negotiables
 
-1. **No user data leaves the device.** No backend, no telemetry, no third-party scripts at runtime, no CDN fonts. Self-host fonts. The only network traffic is loading the app's own static files.
+1. **No user data leaves the device.** No backend, no telemetry, no third-party scripts at runtime, no CDN fonts (use system font stacks, or self-hosted files in `public/fonts/`). The only network traffic is loading the app's own static files.
 2. **Money is stored as integer cents** (`amountCents: number`). Never store or add floats. Parse input only with `parseAmount` from `src/domain/money.ts`. Format only at the UI edge with `Intl.NumberFormat`.
 3. **Dates are local calendar dates** stored as `"YYYY-MM-DD"` strings. Never convert them through UTC (no `new Date("2026-10-03")` for display logic; parse the parts). Read "today" from app state, never from a value captured at load.
 4. **Works offline.** After the first visit, every feature works with no connection.
-5. **Data must survive.** Call `navigator.storage.persist()` on first run. Keep JSON export/import working at all times. Any schema change needs a Dexie migration and a test that upgrades old data. A failed write never clears what the owner typed.
+5. **Data must survive.** Call `navigator.storage.persist()` on first run. Keep JSON export/import working at all times. Any schema change needs a schema migration and a test that upgrades old data. A failed write never clears what the owner typed.
 6. **Mobile first.** Design at 375px wide first. Use the bottom tab bar, keep tap targets at least 44px, and respect `env(safe-area-inset-*)`.
 7. Light and dark themes both supported.
 8. **The app never reloads itself.** Updates wait for the owner (SPEC App updates).
 
-## Stack (use the latest stable versions at setup time)
+## Stack
 
-- **Vite + React + TypeScript** with `strict: true`
-- **Dexie** (IndexedDB) for storage, with `dexie-react-hooks` for live queries
-- **vite-plugin-pwa** for the manifest and service worker (`registerType: "prompt"`)
+The project has only four dev dependencies, all pinned in `package.json`: `esbuild`, `typescript`, `tsx`, `playwright`. There are no runtime dependencies. This was chosen so the app can be built in environments without npm access (see DECISIONS.md, 2026-10-03).
+
+- **TypeScript** with `strict: true`, plus `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`, `noFallthroughCasesInSwitch`, `exactOptionalPropertyTypes`
+- **No UI framework.** Screens are plain TypeScript that build DOM with the small helpers in `src/components/dom.ts`. Each screen exposes `render(state)` and re-renders when its data changes. Always set text with `textContent`, never with `innerHTML` built from data.
+- **esbuild** bundles the app (`scripts/build.mjs`) and serves it in development (`scripts/dev.mjs`)
+- **Storage:** IndexedDB through our own small layer in `src/db/` (no Dexie). Repositories depend on a `Store` interface with two adapters: `IdbStore` for the browser and `MemoryStore` for Node tests. Both must pass the same contract tests (`src/db/store.contract.ts`): in Node against `MemoryStore`, and in Chromium via `npm run e2e` against `IdbStore`.
+- **IndexedDB rules** (Safari is the strictest about these):
+  - Never `await` anything except IndexedDB requests inside a transaction. A transaction commits as soon as it has no pending requests, so awaiting a domain function, a timer or a fetch mid-transaction silently commits half a write. Read everything, compute synchronously with pure domain functions, then write, all inside the one transaction.
+  - `MemoryStore` behaves like IndexedDB: a transaction is all-or-nothing. If any write in it fails, nothing from it is saved. The contract tests include "the second of three writes fails, and none are saved".
+  - The store contract tests run against `IdbStore` in Chromium (`npm run e2e`). WebKit can't be downloaded in the build environment, so Safari storage behavior is checked on a real iPhone in Phase 4.
+- **Offline and updates:** a hand-written service worker generated at build time (`scripts/build.mjs` writes `sw.js` with the precache list). Updates use the "prompt" pattern: a new worker waits and is only activated by the owner (SPEC App updates). It never calls `skipWaiting()` on its own.
 - **Plain CSS with CSS custom properties** (design tokens in `src/styles/tokens.css`). No UI kit.
-- **Vitest** + **@testing-library/react** for unit and component tests; **fake-indexeddb** for storage tests
-- **Playwright** for a few end-to-end smoke tests at a mobile viewport
-- **ESLint + Prettier**
-- Charts are hand-rolled SVG components. Add a chart library only if this becomes painful, and ask first.
+- **Fonts:** system font stacks only, so nothing is fetched from a font CDN. Self-hosted font files may be added to `public/fonts/` later. Every amount uses the `.num` class (monospace stack `--font-mono` with `font-variant-numeric: tabular-nums`) so figures line up.
+- **Tests:** Node's built-in test runner (`node:test` + `node:assert/strict`) run through `tsx`, for unit and repository tests. **Playwright** (library, Chromium) for end-to-end checks at a 375×812 viewport.
+- **Lint:** `tsc --noEmit` with the strict flags above, plus `scripts/lint.mjs`, which enforces the non-negotiables: no `parseFloat` or `Number(` on amount strings, no `new Date("YYYY-MM-DD")` string parsing, no `window.confirm`, no `innerHTML =` with data, and no external URLs in `src/`.
+- Charts are hand-rolled SVG. Add a chart library only if this becomes painful, and ask first.
 
-The base path comes from the `BASE` env variable (default `/`). Never hard-code `/` or `/pocket-ledger/` in asset paths, the manifest or the service worker.
+The base path is set at build time: `npm run build` uses `/`, `npm run build:pages` uses `/pocket-ledger/` (a `--base=` flag, so it works on every OS; `BASE` env is also read). Never hard-code `/` or `/pocket-ledger/` in asset paths, the manifest or the service worker. Read it from `BASE_PATH` in `src/app/env.ts`.
 
-Don't add other dependencies without a short justification in the phase summary.
+Don't add dependencies without asking first and giving a short justification in the phase summary.
 
 ## Project layout
 
@@ -60,11 +68,14 @@ src/
     savings/      Savings tab
     goals/        Goals tab
     settings/     Currency, backup/export/import, CSV, updates, about
-  db/             Dexie schema, migrations, repositories, typed errors, undo
-  domain/         Pure logic: money parsing and math, month totals, goal plans, CSV (no React, no Dexie)
-  components/     Shared UI (Money, AmountInput, MonthPicker, BarRow, Ring, Sheet, Toast, CategoryChips)
+  db/             Store interface, IdbStore, MemoryStore, schema, migrations, repositories, typed errors, undo
+  domain/         Pure logic: money parsing and math, month totals, goal plans, CSV (no DOM, no storage)
+  components/     Shared UI (dom helpers, Money, AmountInput, MonthPicker, BarRow, Ring, Sheet, Toast, CategoryChips)
   styles/         tokens.css, base.css
   test/           Test helpers and fixtures
+public/           Static files copied into the build (icons)
+scripts/          build, dev, preview server, lint
+e2e/              Playwright end-to-end tests
 prototype/        Original single-file prototype (reference only, do not import)
 docs/             SPEC.md, ROADMAP.md, DECISIONS.md
 ```
@@ -73,15 +84,16 @@ Keep business logic in `src/domain/` as pure, tested functions. Components call 
 
 ## Commands
 
-- `npm run dev` — local dev server
-- `npm run build` — type-check and production build (base `/`)
-- `npm run build:pages` — the same build with base `/pocket-ledger/`, for GitHub Pages; must work on Windows, macOS and Linux
-- `npm run preview` — serve the production build
-- `npm run test` — Vitest
-- `npm run e2e` — Playwright
-- `npm run lint` — ESLint + Prettier check
+- `npm run dev` — local dev server with rebuild on save (`npm run dev -- --host` for a phone on the same Wi-Fi). No service worker in dev.
+- `npm run build` — production build into `dist/` (base `/`)
+- `npm run build:pages` — the same build with base `/pocket-ledger/`, for GitHub Pages; works on Windows, macOS and Linux
+- `npm run preview` — serve `dist/` at its base path (`-- --host` for a phone)
+- `npm run test` — unit and repository tests (`node:test`)
+- `npm run e2e` — Playwright in Chromium; builds at `/` and `/pocket-ledger/` and checks install, offline and the shell. First run on a new computer: `npx playwright install chromium`.
+- `npm run lint` — strict type-check plus `scripts/lint.mjs`
+- `npm run screenshots` — saves every tab at 375×812, 375×667, 1280×800 and 1920×1080, light and dark, to `e2e/screenshots/` for layout review
 
-Before saying a task is done: `npm run lint && npm run test && npm run build` must pass.
+Before saying a task is done: `npm run lint && npm run test && npm run build` must pass. From Phase 1 on, `npm run e2e` must pass too, because the real `IdbStore` is only tested there.
 
 ## Working style
 

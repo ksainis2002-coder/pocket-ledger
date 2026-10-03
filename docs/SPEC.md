@@ -2,7 +2,7 @@
 
 ## Goal
 
-Pocket Ledger is a private, fast way for one person to log money in and out, see what's left each month, and build savings toward goals. It is used mostly on a phone, installed to the home screen. Data never leaves the device.
+Pocket Ledger is a private, fast way for one person to log money in and out, see what's left each month, and build savings toward goals. It is used on a phone (installed to the home screen) and on a PC (in the browser or installed). Data never leaves a device on its own; the owner moves it between phone and PC with a backup file (see Phone and PC).
 
 **Out of scope:** multiple users, accounts or login, cloud sync, bank connections, investments or stocks, multi-currency within one ledger, and receipts or photos. Revisit these only if the owner asks.
 
@@ -22,7 +22,7 @@ Pocket Ledger is a private, fast way for one person to log money in and out, see
 | Budget | A monthly spending limit for one expense category |
 | Net (month) | income − expenses − net to savings for that month. Opening amounts are never included. |
 
-## Data model (Dexie / IndexedDB)
+## Data model (IndexedDB)
 
 ```ts
 type Kind = "income" | "expense" | "save" | "withdraw";
@@ -64,6 +64,11 @@ interface Settings {
   lastBackupAt?: number;        // epoch ms of the last completed export
   backupSnoozedUntil?: number;  // epoch ms; hides the backup reminder until then
   iosBrowserAcknowledged?: boolean; // owner chose "Use in Safari anyway" (see Install gate)
+  deviceId: string;              // crypto.randomUUID(), created on first run; never changes
+  deviceName: string;            // "iPhone", "iPad", "Android phone", "Windows PC", "Mac", "Linux PC", "this device"
+  lastSyncAt?: number;           // epoch ms of the last export from, or import into, this device
+  changesSinceSync: number;      // writes (add, edit, delete, undo, goal changes) since lastSyncAt; starts at 0
+  lastImport?: { fromDeviceName: string; exportedAt: number; importedAt: number };
   recentExpenseCategories: string[]; // most recent first, max 4; default ["Groceries","Eating out","Transport","Shopping"]
   recentIncomeSource?: string;       // last income source used
   schemaVersion: number;
@@ -89,8 +94,35 @@ On iOS and iPadOS, Safari and the home-screen app keep **separate storage**. Ent
   - Steps: tap Share → Add to Home Screen → open Pocket Ledger from your home screen.
   - A small secondary link, "Use in Safari anyway". It opens a confirmation sheet that repeats the risk, with buttons "Use in Safari" and "Go back". Choosing "Use in Safari" sets `iosBrowserAcknowledged` and shows the tabs. In this mode, a persistent banner above the tab content says "Not installed: your data may be deleted. Install".
 - **iOS, installed, first run with no data:** the Net empty state adds one line: "Used Pocket Ledger in Safari before? Export a backup there, then import it here in Settings." This line ships with import (Phase 3).
-- **Android and desktop:** no gate, because the browser and the installed app share storage. Show a dismissible install hint in Settings only.
+- **Android and desktop:** no gate, because the browser and the installed app share storage. Show a dismissible install hint in Settings only (for PCs, see Phone and PC).
 - Gate logic lives in `src/app/` as a pure function `shouldGate({ isIOS, isStandalone, acknowledged })` with unit tests for each combination.
+
+## Phone and PC
+
+The owner uses the app on a phone and on a PC. Each device keeps its own data. To switch, the owner sends a backup from one device and restores it on the other. There is no automatic sync.
+
+**Working rule shown in the app:** use one device at a time. Before switching, send your data from the device you used last.
+
+**Layout.**
+- Below 900px wide: the phone layout (header, content, bottom tab bar).
+- 900px and wider: a left side menu (app name, then the 5 sections as a vertical list with icons and labels) replaces the bottom tab bar. The header and content sit to its right. Content stays at most 720px wide.
+- Everything works with a keyboard and mouse: arrow keys move between sections in the menu, Enter submits forms, focus is always visible, and hover states exist for every control.
+
+**Install on a PC.** Chrome and Edge show an install button in the address bar; the app then opens in its own window and works offline. The Settings install hint names this. On a Mac, Safari's "Add to Dock" app keeps its own storage, separate from Safari, so the hint recommends picking one way to open the app and sticking to it.
+
+**Moving data** (Settings, section "Phone and PC"):
+- **"Send to my other device"** runs Export (see Backup). The sheet explains where to put the file: "Save it somewhere your other device can open: iCloud Drive, Google Drive or OneDrive, or email it to yourself."
+- **"Open from my other device"** runs Import. The preview names the source: "From your iPhone · made 12 minutes ago".
+- Below the buttons: "Last moved: from iPhone, 3 Oct, 14:30" (from `lastImport`), or "Not moved yet".
+- Every backup file records the device it came from (`fromDevice` in the backup file).
+
+**Not losing changes.** Import replaces everything, so changes made on this device that were never sent would be lost.
+- Every write increments `changesSinceSync`. Export and import set `lastSyncAt` to now and reset `changesSinceSync` to 0.
+- If `changesSinceSync > 0` when importing, the preview shows a warning above the confirm button: "You made {N} changes on this {deviceName} since you last moved data. Restoring will lose them." with "Send them first" (runs Export) and "Restore anyway".
+- The older-backup warning (Backup, Import step 3) still applies.
+- `deviceName` comes from the user agent once, on first run (iPadOS reporting as a Mac counts as iPad, as in Install gate).
+
+**Required tests:** `changesSinceSync` counts adds, edits, deletes, undos and goal changes, and resets on export and on import; the warning appears for N > 0 and not for 0; `deviceName` detection for each listed device; the side menu appears at 900px and the bottom bar below it; no sideways scroll at 1280×800 and 1920×1080.
 
 ## Screens
 
@@ -135,6 +167,7 @@ When the backup reminder is due (see Backup), it shows as a banner at the top of
 ### Settings (gear icon in the header)
 - Currency (EUR default) and theme.
 - **Backup:** "Back up now" (export everything as JSON); "Restore from backup" (import). See Backup.
+- **Phone and PC:** "Send to my other device", "Open from my other device" and "Last moved" (see Phone and PC).
 - Export transactions as CSV (see CSV export).
 - Storage status: whether persistent storage is granted, whether the app is installed, and the last backup date ("Never" if none).
 - **Updates:** when a new version is waiting, "Update ready" with a "Reload now" button (see App updates).
@@ -209,28 +242,28 @@ Single-entry changes happen at once and can be undone, instead of asking first.
 - Covered actions: add, edit or delete an entry (income, expense, savings movement); "Add" and "Take out" on a goal card.
 - After the action, a toast shows what happened with an "Undo" button for 6 seconds: "Expense added · Undo", "Expense deleted · Undo", "Changes saved · Undo", "€50 added to Holiday · Undo".
 - Only the most recent action can be undone. A new action replaces the toast.
-- Undo restores the exact previous state of the affected records (same id, `createdAt` and `updatedAt`) through a repository function, in one Dexie transaction, and recomputes the goal's `savedCents` when a linked movement is involved.
+- Undo restores the exact previous state of the affected records (same id, `createdAt` and `updatedAt`) through a repository function, in one IndexedDB transaction, and recomputes the goal's `savedCents` when a linked movement is involved.
 - Undo is a write and follows Goals and savings rules. If the data changed so that undo would break a rule (for example, the money was withdrawn after the save was deleted), undo is refused with the rule's message and nothing changes.
 - Not covered, because they already have a confirmation sheet: archiving or deleting a goal, import, delete all data.
 - Required tests: undo after add, edit and delete restores identical records; undo of a goal contribution restores `savedCents`; undo refused by a savings rule leaves data unchanged.
 
 ## Storage errors
 
-- **Repository errors** are typed: `RuleError` (a Goals and savings rule), `QuotaError` (storage full), `StorageError` (anything else). Components show the message; they never see raw Dexie errors.
+- **Repository errors** are typed: `RuleError` (a Goals and savings rule), `QuotaError` (storage full), `StorageError` (anything else). Components show the message; they never see raw IndexedDB errors.
 - **A write fails:** nothing is cleared. The form keeps its values, and a toast says "Couldn't save. Your entry is still in the form." For `QuotaError`: "Storage is full. Export a backup, then delete old entries."
 - **The database won't open** (blocked, unavailable, `VersionError`, corrupted): show a full-screen message instead of the tabs: "Can't open your data" with "Reload" and, from Phase 3, "Export what can be read". That export reads each table on its own, skips tables that fail, and builds a normal backup file with whatever it read.
 - Required tests: a simulated failed write leaves data unchanged and returns the right error type; a failed add keeps the form values.
 
 ## App updates
 
-- vite-plugin-pwa uses `registerType: "prompt"`. A new version never reloads the app on its own.
+- The service worker uses the "prompt" pattern: a new version waits and never reloads the app on its own.
 - When a new version is waiting, Settings shows "Update ready" with "Reload now". Otherwise the update applies the next time the app is fully closed and reopened.
-- Dexie `versionchange` (another tab or window is upgrading the database): close the database and show a full-screen message "Pocket Ledger was updated. Reload".
-- Dexie `blocked` (this tab is upgrading and another one holds the old version): show "Close other Pocket Ledger windows to finish updating."
+- IndexedDB `versionchange` (another tab or window is upgrading the database): close the database and show a full-screen message "Pocket Ledger was updated. Reload".
+- IndexedDB `blocked` (this tab is upgrading and another one holds the old version): show "Close other Pocket Ledger windows to finish updating."
 
 ## Goals and savings rules
 
-All of these are enforced in repository functions in `src/db/`, inside one Dexie transaction per write, with the math in `src/domain/goals.ts` and `src/domain/totals.ts`.
+All of these are enforced in repository functions in `src/db/`, inside one IndexedDB transaction per write, with the math in `src/domain/goals.ts` and `src/domain/totals.ts`.
 
 **Invariant.** For every goal, `savedCents = openingCents + Σ linked save − Σ linked withdraw`, and `savedCents ≥ 0`. Recompute it whenever a linked movement is added, edited or deleted, or `openingCents` is edited.
 
@@ -260,7 +293,7 @@ All of these are enforced in repository functions in `src/db/`, inside one Dexie
 - **Delete the movements too:** linked movements are deleted. The savings balance goes down by `savedCents`; free savings is unchanged. Copy: "Your savings balance goes down by €{saved}."
 - In both cases the movements' past months change, and the copy says so: "Past months will be recalculated."
 
-**Required tests** (`src/domain` and repository tests with fake-indexeddb): the invariant after add, edit and delete of linked movements; each refusal above at exactly the limit and one cent over; archive/unarchive effects on free savings; archiving with "I spent it" creates one linked withdraw equal to `savedCents`, leaves free savings unchanged, and lowers the balance by `savedCents`; archiving with "Keep it in savings" creates no movement and raises free savings by `savedCents`; archiving a goal with `savedCents` 0 skips the sheet; both delete options, checking balance, free savings and that no orphaned `goalId` remains; Keep-the-movements delete with d > 0, d = 0 and d < 0, checking the balance, free savings and the copy; the disabled state when free savings is exactly −d minus one cent; a goal whose opening amount is edited below what has been withdrawn.
+**Required tests** (`src/domain` and repository tests against `MemoryStore`, with the store contract also run in Chromium): the invariant after add, edit and delete of linked movements; each refusal above at exactly the limit and one cent over; archive/unarchive effects on free savings; archiving with "I spent it" creates one linked withdraw equal to `savedCents`, leaves free savings unchanged, and lowers the balance by `savedCents`; archiving with "Keep it in savings" creates no movement and raises free savings by `savedCents`; archiving a goal with `savedCents` 0 skips the sheet; both delete options, checking balance, free savings and that no orphaned `goalId` remains; Keep-the-movements delete with d > 0, d = 0 and d < 0, checking the balance, free savings and the copy; the disabled state when free savings is exactly −d minus one cent; a goal whose opening amount is edited below what has been withdrawn.
 
 ## Backup
 
@@ -274,6 +307,7 @@ interface BackupFile {
   formatVersion: 1;
   schemaVersion: number;
   exportedAt: number;    // epoch ms
+  fromDevice: { id: string; name: string };
   data: { transactions: Transaction[]; goals: Goal[]; budgets: Budget[]; settings: Settings };
 }
 ```
@@ -282,7 +316,7 @@ interface BackupFile {
 1. Read all tables and build the file as a `File` object.
 2. If `navigator.canShare?.({ files: [file] })` is true, call `navigator.share({ files: [file] })` so the owner can save it to Files or iCloud Drive, or send it to themselves. Otherwise download it with an `<a download>` link.
 3. Safari requires `share()` to run soon after a tap, and reading the database first can use up that window. If `share()` throws `NotAllowedError`, show a sheet "Backup ready" with a "Share backup" button that calls `share()` directly with the already-built file.
-4. Set `lastBackupAt` only when sharing resolves or the download starts. If the owner cancels the share sheet (`AbortError`), don't set it and show nothing.
+4. Set `lastBackupAt` and `lastSyncAt`, and reset `changesSinceSync` to 0, only when sharing resolves or the download starts. If the owner cancels the share sheet (`AbortError`), don't set it and show nothing.
 5. Toast: "Backup saved".
 
 **Reminder.** Show the backup banner when it isn't snoozed and any of these is true:
@@ -293,14 +327,14 @@ Logic lives in a pure `backupReminder(now, settings, changedCount, totalCount)` 
 
 **Import.**
 1. Pick a file. Validate it fully against the schema before touching any data: `app` and `formatVersion` match, all amounts are positive integers within the maximum (opening amounts ≥ 0), dates are valid `YYYY-MM-DD`, IDs are unique, every `goalId` points to a goal in the file, and only `save`/`withdraw` have a `goalId`. On failure, show one plain sentence with the first problem ("This file isn't a Pocket Ledger backup" or "Entry 214 has an invalid date") and change nothing.
-2. Preview: when the backup was made, counts of transactions, goals and budgets, and the date of its newest entry.
+2. Preview: which device it came from and when it was made ("From your iPhone · made 12 minutes ago"), counts of transactions, goals and budgets, and the date of its newest entry. If `changesSinceSync > 0`, show the warning from Phone and PC.
 3. If the newest `updatedAt` in the current data is later than the backup's `exportedAt`, show a warning in the preview: "This backup is older than the data on this phone. {N} entries added or changed since {date} will be lost." N is the number of current transactions with `updatedAt > exportedAt`.
 4. The preview always offers "Back up current data first" (runs Export) above the confirm button "Replace my data".
-5. Replace all tables in one Dexie transaction. Recompute every goal's `savedCents` from the imported movements. If any stored value differed, say so after the import: "Fixed saved amounts on 2 goals to match their movements."
+5. Replace all tables in one IndexedDB transaction. Keep this device's own `deviceId`, `deviceName` and install-related settings; take everything else from the file. Set `lastImport`, `lastSyncAt` and `changesSinceSync` = 0. Recompute every goal's `savedCents` from the imported movements. If any stored value differed, say so after the import: "Fixed saved amounts on 2 goals to match their movements."
 6. If free savings comes out negative after import, import anyway (it's the owner's data) and let the Savings tab warning explain it.
 7. Toast: "Backup restored".
 
-**Required tests:** export → delete all → import gives identical data (including `lastBackupAt` handling); each validation failure leaves data unchanged; the "older backup" warning count; `savedCents` repair on import.
+**Required tests:** export → delete all → import gives identical data (including `lastBackupAt` handling, `fromDevice`, and this device keeping its own `deviceId` and `deviceName`); each validation failure leaves data unchanged; the "older backup" warning count; `savedCents` repair on import.
 
 ## CSV export
 
@@ -320,7 +354,7 @@ For opening transactions in a spreadsheet. It is not a backup and can't be impor
 - Amounts follow Amount input. Dates follow Dates and today.
 - Totals only count transactions within the selected month (inclusive).
 - Goal `savedCents` follows the invariant in Goals and savings rules.
-- Every write goes through a repository function in `src/db/`. Components never touch Dexie tables directly.
+- Every write goes through a repository function in `src/db/`. Components never touch the database directly.
 
 ## Non-functional
 
@@ -329,6 +363,7 @@ For opening transactions in a spreadsheet. It is not a backup and can't be impor
 - WCAG AA contrast in both themes. Visible focus states. Charts have text alternatives.
 - Works in iOS Safari 17+ (installed and in-browser), Chrome Android, and desktop Chrome, Firefox and Safari.
 - The app works at any base path (`/` locally, `/pocket-ledger/` on GitHub Pages), set at build time.
+- Supported sizes: phones from 375×667, and PCs up to 1920×1080 and wider. `npm run screenshots` covers 375×812, 375×667, 1280×800 and 1920×1080.
 
 ## Known platform risk
 
