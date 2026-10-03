@@ -123,8 +123,8 @@ describe("Phase 2 screens", () => {
     await page.locator("#income-form-date").fill(iso);
     await page.getByRole("button", { name: "Add income" }).click();
     await page.locator(".toast-text", { hasText: "Income added" }).waitFor();
-    const label = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(last);
-    assert.equal(await page.locator(".picker-label").innerText(), label);
+    const label = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(last);
+    assert.equal(await page.locator(".picker-long").textContent(), label);
     assert.match(await income.first().innerText(), /\+€50/);
     assert.equal(await page.locator("#income-form-date").getAttribute("max"), `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`, "date picker capped at today");
     await context.close();
@@ -274,7 +274,7 @@ describe("Phase 2 screens", () => {
     assert.match(await page.locator("#net-hero .hero-value").innerText(), /^2\.387,50\s€$/);
     assert.match(await page.locator("#net-stats").innerText(), /12,50\s€/);
     const month = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(new Date());
-    assert.equal(await page.locator(".picker-label").innerText(), month, "month names are English, like the rest of the app");
+    assert.equal(await page.locator(".picker-long").textContent(), month, "month names are English, like the rest of the app");
     await context.close();
   });
 

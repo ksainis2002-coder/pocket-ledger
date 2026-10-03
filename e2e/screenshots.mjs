@@ -186,6 +186,63 @@ try {
     await context.close();
   }
 
+  // Settings, the send and delete sheets, restore previews (safe, and with a warning), and the reminder.
+  for (const [size, colorScheme] of [[SIZES[0], "light"], [SIZES[0], "dark"], [SIZES[2], "light"]]) {
+    const tag = `${size.width}x${size.height}-${colorScheme}`;
+    const context = await contextFor(size, colorScheme);
+    const page = await open(context, true);
+    await page.getByRole("button", { name: "Settings" }).click();
+    await page.locator('[data-screen="settings"]').waitFor();
+    await shot(page, `settings-top-${tag}.png`);
+    await page.screenshot({ path: path.join(SHOTS, `settings-full-${tag}.png`), fullPage: true });
+    saved.push(`settings-full-${tag}.png`);
+    await page.locator("#send-device").click();
+    await shot(page, `sheet-send-${tag}.png`);
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.locator("#send-confirm").click()]);
+    const backupPath = path.join(ROOT, `e2e/out/shot-backup-${tag}.json`);
+    await dl.saveAs(backupPath);
+    await page.locator("#delete-all").click();
+    await page.locator("#delete-confirm-text").fill("DELETE");
+    await shot(page, `sheet-delete-all-${tag}.png`);
+    await page.getByRole("button", { name: "Close" }).click();
+
+    // An unsent change, then restore the backup made above: warning, lost list and the older-backup line.
+    await page.getByRole("tab", { name: "Expenses" }).click();
+    await page.locator("#expense-form-amount").fill("4,50");
+    await page.getByRole("radio", { name: "Eating out" }).click();
+    await page.getByRole("button", { name: "Add note" }).click();
+    await page.locator("#expense-form-note").fill("Coffee");
+    await page.getByRole("button", { name: "Add expense" }).click();
+    await page.locator(".toast-text", { hasText: "Expense added" }).waitFor();
+    await page.getByRole("button", { name: "Settings" }).click();
+    const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.locator("#restore-backup").click()]);
+    await chooser.setFiles(backupPath);
+    await page.locator(".restore-source").waitFor();
+    await shot(page, `restore-warning-${tag}.png`);
+    await page.getByRole("button", { name: "Close" }).click();
+    await context.close();
+
+    // The same file on an empty device: safe, no warning.
+    const fresh = await contextFor(size, colorScheme);
+    const p2 = await open(fresh, false);
+    await p2.getByRole("button", { name: "Settings" }).click();
+    const [ch2] = await Promise.all([p2.waitForEvent("filechooser"), p2.locator("#open-device").click()]);
+    await ch2.setFiles(backupPath);
+    await p2.locator(".restore-source").waitFor();
+    await shot(p2, `restore-safe-${tag}.png`);
+    await fresh.close();
+  }
+
+  // The backup reminder on Net (sample data, never backed up).
+  {
+    const context = await contextFor(SIZES[0], "light");
+    const page = await open(context, true);
+    await page.getByRole("tab", { name: "Net" }).click();
+    await page.locator("#backup-reminder").waitFor();
+    await shot(page, "net-reminder-375x812-light.png");
+    await context.close();
+  }
+
   // Install gate, Safari banner and error screens on a phone.
   for (const colorScheme of ["light", "dark"]) {
     const context = await contextFor(SIZES[0], colorScheme, { userAgent: IPHONE_UA });

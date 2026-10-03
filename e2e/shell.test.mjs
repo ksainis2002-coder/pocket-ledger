@@ -71,20 +71,20 @@ for (const base of ["/", "/pocket-ledger/"]) {
       assert.deepEqual(await tabs.allInnerTexts(), ["Net", "Income", "Expenses", "Savings", "Goals"]);
       assert.equal(await page.locator("#page-title").innerText(), "Net money");
       assert.equal(await page.getByRole("tab", { name: "Net" }).getAttribute("aria-selected"), "true");
-      const label = page.locator(".picker-label");
+      const label = page.locator(".picker-long");
       const now = new Date();
-      const currentLabel = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(new Date(now.getFullYear(), now.getMonth(), 1));
-      assert.equal(await label.innerText(), currentLabel);
+      const currentLabel = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(new Date(now.getFullYear(), now.getMonth(), 1));
+      assert.equal(await label.textContent(), currentLabel);
       assert.equal(await page.getByRole("button", { name: "Next month" }).isDisabled(), true);
 
       // Month picker: back two months, forward again, never past the current month.
       await page.getByRole("button", { name: "Previous month" }).click();
       await page.getByRole("button", { name: "Previous month" }).click();
-      assert.notEqual(await label.innerText(), currentLabel);
+      assert.notEqual(await label.textContent(), currentLabel);
       assert.equal(await page.getByRole("button", { name: "Next month" }).isDisabled(), false);
       await page.getByRole("button", { name: "Next month" }).click();
       await page.getByRole("button", { name: "Next month" }).click();
-      assert.equal(await label.innerText(), currentLabel);
+      assert.equal(await label.textContent(), currentLabel);
       assert.equal(await page.getByRole("button", { name: "Next month" }).isDisabled(), true);
 
       // Picker hidden on Goals, and the header keeps its height so content doesn't jump.
