@@ -159,6 +159,41 @@ for (const base of ["/", "/pocket-ledger/"]) {
       await context.close();
     });
 
+    test("PC layout: side menu, keyboard, no sideways scroll", async () => {
+      for (const viewport of [{ width: 1280, height: 800 }, { width: 1920, height: 1080 }]) {
+        const context = await browser.newContext({ viewport, colorScheme: "light" });
+        const page = await context.newPage();
+        await page.goto(server.url);
+        assert.equal(await page.locator(".brand").isVisible(), true, "app name in the side menu");
+        const nav = await page.locator(".tabbar").boundingBox();
+        const content = await page.locator("#content").boundingBox();
+        assert.ok(nav && content && nav.x + nav.width <= content.x + 0.5, "menu sits left of the content");
+        assert.ok(nav.height >= viewport.height - 1, "menu runs the full height");
+        // Content fills its column (up to 720px) and lines up with the header.
+        const card = await page.locator(".empty").boundingBox();
+        const title = await page.locator("#page-title").boundingBox();
+        assert.ok(card.width >= 600, `content column too narrow: ${card.width}px`);
+        assert.ok(Math.abs(card.x - title.x) <= 1, "content lines up with the header title");
+        assert.equal(await page.getByRole("tablist").getAttribute("aria-orientation"), "vertical");
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
+        // Keyboard: focus the selected section, arrow down moves to the next one.
+        await page.getByRole("tab", { name: "Net" }).focus();
+        await page.keyboard.press("ArrowDown");
+        assert.equal(await page.locator("#page-title").innerText(), "Income");
+        await page.keyboard.press("End");
+        assert.equal(await page.locator("#page-title").innerText(), "Goals");
+        await context.close();
+      }
+      // Just below the breakpoint: the phone layout with the bottom bar.
+      const context = await browser.newContext({ viewport: { width: 899, height: 800 } });
+      const page = await context.newPage();
+      await page.goto(server.url);
+      assert.equal(await page.locator(".brand").isVisible(), false);
+      const bar = await page.locator(".tabbar").boundingBox();
+      assert.ok(bar && bar.y + bar.height >= 799, "bottom bar at the bottom");
+      await context.close();
+    });
+
     test("phone screenshots in light and dark", async () => {
       for (const colorScheme of ["light", "dark"]) {
         const context = await browser.newContext({ ...PHONE, colorScheme });
