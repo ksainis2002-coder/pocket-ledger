@@ -178,6 +178,7 @@ When the backup reminder is due (see Backup), it shows as a banner at the top of
 - "Add" on a card puts money into the goal and creates a linked `save` transaction.
 - "Take out" on a card withdraws from the goal and creates a linked `withdraw` transaction.
 - Edit, archive and delete a goal (see Goals and savings rules).
+- When a goal is reached, its main button is "Archive" (Add stays as a secondary button).
 - Archived goals sit in a collapsed "Archived" list below the active ones.
 
 ### Settings (gear icon in the header)
@@ -201,7 +202,7 @@ Logging an expense should take under 5 seconds: amount, category, Add.
   4. "Add expense" button, full width.
 - When the Expenses tab is opened from the tab bar or the shortcut, and the selected month is the current month, the amount field gets focus so the keyboard opens.
 - Enter in the amount field submits the form (desktop and Android). The iPhone decimal keypad has no return key, so the "Add expense" button must stay visible above the open keyboard on a 375×667 screen; it is the main way to submit on iPhone.
-- After adding: the amount and note clear, the category stays, focus returns to the amount field, and the toast says "Expense added · Undo".
+- After adding: the amount and note clear, the category stays, the date goes back to today, focus returns to the amount field, and the toast says "Expense added · Undo".
 - Choosing a category moves it to the front of `recentExpenseCategories` (max 4).
 - **PWA shortcut:** the manifest has a shortcut "Add expense" that opens `?add=expense`, which shows the Expenses tab on the current month with the amount focused. Android shows it on long-press of the icon; iOS doesn't support manifest shortcuts.
 
@@ -375,6 +376,7 @@ For opening transactions in a spreadsheet. It is not a backup and can't be impor
 ## Behavior rules
 
 - Amounts follow Amount input. Dates follow Dates and today.
+- Money, amount placeholders and edit prefills use the device's decimal mark (12,50 € on a Greek phone). Dates and month names are English on every device ("3 Oct", "October 2026").
 - Totals only count transactions within the selected month (inclusive).
 - Goal `savedCents` follows the invariant in Goals and savings rules.
 - Every write goes through a repository function in `src/db/`. Components never touch the database directly.

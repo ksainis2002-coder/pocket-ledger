@@ -1,7 +1,7 @@
 // Service worker registration with the "prompt" update pattern (SPEC App updates).
 // A new version waits. It is only activated when the owner taps "Reload now",
 // or when every Pocket Ledger window is closed and the app is opened again.
-import { BASE_PATH, IS_DEV } from "./env";
+import { BASE_PATH, IS_DEV, IS_PREVIEW } from "./env";
 
 type Listener = (ready: boolean) => void;
 
@@ -21,7 +21,7 @@ export function onUpdateReady(fn: Listener): () => void {
 }
 
 export async function registerServiceWorker(): Promise<void> {
-  if (IS_DEV || !("serviceWorker" in navigator)) return;
+  if (IS_DEV || IS_PREVIEW || !("serviceWorker" in navigator)) return;
   try {
     const reg = await navigator.serviceWorker.register(BASE_PATH + "sw.js", { scope: BASE_PATH });
     // Only a worker that is waiting while another one controls the page is an update.
@@ -52,4 +52,9 @@ export function applyUpdate(): void {
     location.reload();
   });
   waiting.postMessage({ type: "SKIP_WAITING" });
+}
+
+/** Reload the app. Only ever called from a button the owner taps ("Reload"), never on its own. */
+export function reloadApp(): void {
+  location.reload();
 }

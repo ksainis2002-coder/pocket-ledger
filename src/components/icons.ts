@@ -8,6 +8,12 @@ const PATHS: Record<string, string[]> = {
   goals: [],
   prev: ["M15 6l-6 6 6 6"],
   next: ["M9 6l6 6-6 6"],
+  close: ["M6 6l12 12", "M18 6L6 18"],
+  down: ["M7 10l5 5 5-5"],
+  more: ["M5 12h.01", "M12 12h.01", "M19 12h.01"],
+  plus: ["M12 5v14", "M5 12h14"],
+  edit: ["M4 20h4L19 9l-4-4L4 16v4z"],
+  warning: ["M12 4l9 16H3z", "M12 10v4", "M12 17h.01"],
 };
 
 /** Line icons drawn with currentColor. */

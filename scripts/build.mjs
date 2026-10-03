@@ -25,7 +25,7 @@ export const APP = {
  * @param {{ base?: string, dev?: boolean, outdir?: string, quiet?: boolean }} [options]
  * @returns {Promise<{ outdir: string, base: string, version: string, files: string[] }>}
  */
-export async function build({ base = "/", dev = false, outdir = path.join(ROOT, "dist"), quiet = false } = {}) {
+export async function build({ base = "/", dev = false, preview = false, outdir = path.join(ROOT, "dist"), quiet = false } = {}) {
   await rm(outdir, { recursive: true, force: true });
   await mkdir(path.join(outdir, "assets"), { recursive: true });
 
@@ -45,6 +45,7 @@ export async function build({ base = "/", dev = false, outdir = path.join(ROOT, 
     define: {
       __BASE__: JSON.stringify(base),
       __DEV__: JSON.stringify(dev),
+      __PREVIEW__: JSON.stringify(preview),
     },
   });
 
@@ -78,6 +79,14 @@ export async function build({ base = "/", dev = false, outdir = path.join(ROOT, 
     background_color: APP.themeLight,
     theme_color: APP.themeLight,
     lang: "en",
+    shortcuts: [
+      {
+        name: "Add expense",
+        short_name: "Expense",
+        url: base + "?add=expense",
+        icons: [{ src: base + "icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+      },
+    ],
     icons: [
       { src: base + "icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: base + "icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },

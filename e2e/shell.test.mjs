@@ -63,6 +63,7 @@ for (const base of ["/", "/pocket-ledger/"]) {
       page.on("pageerror", (e) => errors.push(e.message));
 
       await page.goto(server.url);
+      await page.locator("#page-title").waitFor();
 
       // Shell: 5 tabs, Net selected, month picker on the current month with "next" disabled.
       const tabs = page.getByRole("tab");
@@ -133,15 +134,19 @@ for (const base of ["/", "/pocket-ledger/"]) {
       // Last tab remembered: open Expenses, reload, still on Expenses.
       await page.getByRole("tab", { name: "Expenses" }).click();
       await page.reload();
+      await page.locator("#page-title").waitFor();
       assert.equal(await page.locator("#page-title").innerText(), "Expenses");
 
       // Offline: reload and deep link both work with no network.
       await context.setOffline(true);
       await page.reload();
+      await page.locator("#page-title").waitFor();
       assert.equal(await page.getByRole("tab").count(), 5);
       assert.equal(await page.locator("#page-title").innerText(), "Expenses");
       await page.goto(server.url + "?add=expense");
-      assert.equal(await page.getByRole("tab").count(), 5);
+      await page.locator("#page-title").waitFor();
+      assert.equal(await page.locator("#page-title").innerText(), "Expenses");
+      assert.equal(await page.evaluate(() => document.activeElement?.id), "expense-form-amount", "the shortcut focuses the amount");
       await context.setOffline(false);
 
       // An update arrives: the new worker waits, and the page is not reloaded.
@@ -182,6 +187,7 @@ for (const base of ["/", "/pocket-ledger/"]) {
         const context = await browser.newContext({ viewport, colorScheme: "light" });
         const page = await context.newPage();
         await page.goto(server.url);
+        await page.locator("#page-title").waitFor();
         assert.equal(await page.locator(".brand").isVisible(), true, "app name in the side menu");
         const nav = await page.locator(".tabbar").boundingBox();
         const content = await page.locator("#content").boundingBox();
@@ -193,7 +199,7 @@ for (const base of ["/", "/pocket-ledger/"]) {
         assert.ok(card.width >= 600, `content column too narrow: ${card.width}px`);
         assert.ok(Math.abs(card.x - title.x) <= 1, "content lines up with the header title");
         assert.equal(await page.getByRole("tablist").getAttribute("aria-orientation"), "vertical");
-        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
+        assert.ok((await page.evaluate(() => document.documentElement.scrollWidth)) <= viewport.width, "no sideways scroll");
         // Keyboard: focus the selected section, arrow down moves to the next one.
         await page.getByRole("tab", { name: "Net" }).focus();
         await page.keyboard.press("ArrowDown");
@@ -206,6 +212,7 @@ for (const base of ["/", "/pocket-ledger/"]) {
       const context = await browser.newContext({ viewport: { width: 899, height: 800 } });
       const page = await context.newPage();
       await page.goto(server.url);
+      await page.locator("#page-title").waitFor();
       assert.equal(await page.locator(".brand").isVisible(), false);
       const bar = await page.locator(".tabbar").boundingBox();
       assert.ok(bar && bar.y + bar.height >= 799, "bottom bar at the bottom");
@@ -217,12 +224,13 @@ for (const base of ["/", "/pocket-ledger/"]) {
         const context = await browser.newContext({ ...PHONE, colorScheme });
         const page = await context.newPage();
         await page.goto(server.url);
+        await page.locator("#page-title").waitFor();
         await page.screenshot({ path: path.join(OUT, `shell-${slug}-${colorScheme}.png`) });
         // The tab bar sits inside the viewport and the page doesn't scroll sideways.
         const box = await page.locator(".tabbar").boundingBox();
         assert.ok(box && box.y + box.height <= 812 + 0.5);
-        const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
-        assert.equal(overflow, false);
+        // On a mobile viewport the layout width grows to fit wide content, so compare with the real screen width.
+        assert.ok((await page.evaluate(() => document.documentElement.scrollWidth)) <= 375, "no sideways scroll");
         await context.close();
       }
     });
