@@ -125,7 +125,15 @@ const PRECACHE = ${JSON.stringify(precache, null, 2)};
 
 self.addEventListener("install", (event) => {
   // No skipWaiting(): an update waits until the owner chooses "Reload now" or closes the app.
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)));
+  // cache: "reload" skips the browser's HTTP cache, so a version never mixes files from another one.
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await Promise.all(PRECACHE.map(async (url) => {
+      const response = await fetch(new Request(url, { cache: "reload" }));
+      if (!response.ok) throw new Error("Precache failed for " + url + ": " + response.status);
+      await cache.put(url, response);
+    }));
+  })());
 });
 
 self.addEventListener("activate", (event) => {
