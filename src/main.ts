@@ -28,7 +28,7 @@ if (root) {
         started = true;
         await startApp(root, clock, ledger, {
           addExpense,
-          banner: h("div", { class: "banner", role: "note" }, h("p", { class: "banner-text" }, "Preview: try anything. Entries stay in this preview on this device only.")),
+          banner: h("div", { class: "banner", role: "note" }, h("p", { class: "banner-text" }, "Preview: try anything. Entries stay in this preview on this device only, and backup and CSV files can't be saved from here.")),
         });
         return;
       }
