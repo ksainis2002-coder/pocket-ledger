@@ -108,6 +108,24 @@ for (const base of ["/", "/pocket-ledger/"]) {
       assert.equal(new URL(scope).pathname, base);
       await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
 
+      // The data layer opened at startup: IndexedDB has this device's settings.
+      await waitInPage(
+        page,
+        () =>
+          new Promise((resolve) => {
+            const req = indexedDB.open("pocket-ledger");
+            req.onsuccess = () => {
+              const db = req.result;
+              if (!db.objectStoreNames.contains("settings")) return (db.close(), resolve(false));
+              const get = db.transaction("settings").objectStore("settings").get("settings");
+              get.onsuccess = () => (db.close(), resolve(Boolean(get.result?.deviceId)));
+              get.onerror = () => (db.close(), resolve(false));
+            };
+            req.onerror = () => resolve(false);
+          }),
+        { message: "settings to be created in IndexedDB" },
+      );
+
       const cdp = await context.newCDPSession(page);
       const { installabilityErrors } = await cdp.send("Page.getInstallabilityErrors");
       assert.deepEqual(installabilityErrors, [], JSON.stringify(installabilityErrors));
