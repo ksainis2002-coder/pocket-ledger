@@ -169,6 +169,96 @@ button {
   font-weight: 600;
 }
 
+.brand {
+  display: none;
+}
+
+/* Hover states for mouse users (PC). */
+@media (hover: hover) {
+  .picker-btn:not(:disabled):hover {
+    border-color: var(--accent);
+  }
+
+  .tab:hover {
+    color: var(--fg);
+  }
+
+  .tab[aria-selected="true"]:hover {
+    color: var(--accent);
+  }
+}
+
+/* ---------- PC layout: side menu at 900px and wider ---------- */
+
+@media (min-width: 900px) {
+  .app {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .tabbar {
+    position: sticky;
+    top: 0;
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    height: 100vh;
+    height: 100dvh;
+    border-top: 0;
+    border-right: 1px solid var(--line);
+    padding: var(--space-5) var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding-inline: var(--space-3);
+    font: 700 var(--text-md) / 1.2 var(--font-display);
+  }
+
+  .brand-mark {
+    border-radius: 7px;
+  }
+
+  .tabbar-inner {
+    max-width: none;
+    margin: 0;
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+
+  .tab {
+    min-height: var(--tap);
+    grid-auto-flow: column;
+    justify-content: start;
+    align-items: center;
+    gap: var(--space-3);
+    padding-inline: var(--space-3);
+    font-size: var(--text-sm);
+  }
+
+  .topbar {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .content {
+    grid-column: 2;
+    grid-row: 2;
+    width: 100%; /* auto margins on a grid item would otherwise shrink it to its content */
+    padding-block: var(--space-6);
+  }
+
+  .topbar-inner,
+  .content {
+    padding-inline: var(--space-6);
+  }
+}
+
 /* ---------- Empty states ---------- */
 
 .empty {

@@ -15,10 +15,11 @@ import {
   type NavState,
   type TabId,
 } from "./navigation";
+import { BASE_PATH } from "./env";
 import { readPref, writePref } from "./prefs";
 import type { TodayClock } from "./today";
 
-/** Mounts the app shell: header with tab title and month picker, content area, bottom tab bar. */
+/** Mounts the app shell: header with tab title and month picker, content area, and the section menu (bottom bar on phones, side menu on PCs). */
 export function mountShell(root: HTMLElement, clock: TodayClock): void {
   let state: NavState = initialNav(readPref("tab"), clock.get());
 
@@ -39,7 +40,24 @@ export function mountShell(root: HTMLElement, clock: TodayClock): void {
       h("span", { class: "tab-label" }, t.label),
     ),
   );
-  const tabbar = h("nav", { class: "tabbar", "aria-label": "Sections" }, h("div", { class: "tabbar-inner", role: "tablist" }, ...tabButtons));
+  // Shown only in the PC side menu (900px and wider).
+  const brand = h(
+    "div",
+    { class: "brand" },
+    h("img", { class: "brand-mark", src: BASE_PATH + "icons/icon.svg", alt: "", width: 28, height: 28 }),
+    h("span", { class: "brand-name" }, "Pocket Ledger"),
+  );
+  const tabbar = h(
+    "nav",
+    { class: "tabbar", "aria-label": "Sections" },
+    brand,
+    h("div", { class: "tabbar-inner", role: "tablist", "aria-orientation": "horizontal" }, ...tabButtons),
+  );
+  const tablist = tabbar.querySelector('[role="tablist"]');
+  const wide = window.matchMedia("(min-width: 900px)");
+  const syncOrientation = (): void => tablist?.setAttribute("aria-orientation", wide.matches ? "vertical" : "horizontal");
+  syncOrientation();
+  wide.addEventListener("change", syncOrientation);
 
   replaceChildren(root, h("div", { class: "app" }, header, main, tabbar));
 
@@ -84,8 +102,8 @@ export function mountShell(root: HTMLElement, clock: TodayClock): void {
     btn.addEventListener("keydown", (e) => {
       const i = tabButtons.indexOf(btn);
       const target =
-        e.key === "ArrowRight" ? tabButtons[(i + 1) % tabButtons.length]
-        : e.key === "ArrowLeft" ? tabButtons[(i - 1 + tabButtons.length) % tabButtons.length]
+        e.key === "ArrowRight" || e.key === "ArrowDown" ? tabButtons[(i + 1) % tabButtons.length]
+        : e.key === "ArrowLeft" || e.key === "ArrowUp" ? tabButtons[(i - 1 + tabButtons.length) % tabButtons.length]
         : e.key === "Home" ? tabButtons[0]
         : e.key === "End" ? tabButtons[tabButtons.length - 1]
         : undefined;
