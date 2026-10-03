@@ -178,6 +178,7 @@ When the backup reminder is due (see Backup), it shows as a banner at the top of
 - "Add" on a card puts money into the goal and creates a linked `save` transaction.
 - "Take out" on a card withdraws from the goal and creates a linked `withdraw` transaction.
 - Edit, archive and delete a goal (see Goals and savings rules).
+- When a goal is reached, its main button is "Archive" (Add stays as a secondary button).
 - Archived goals sit in a collapsed "Archived" list below the active ones.
 
 ### Settings (gear icon in the header)
@@ -375,6 +376,7 @@ For opening transactions in a spreadsheet. It is not a backup and can't be impor
 ## Behavior rules
 
 - Amounts follow Amount input. Dates follow Dates and today.
+- Money, amount placeholders and edit prefills use the device's decimal mark (12,50 € on a Greek phone). Dates and month names are English on every device ("3 Oct", "October 2026").
 - Totals only count transactions within the selected month (inclusive).
 - Goal `savedCents` follows the invariant in Goals and savings rules.
 - Every write goes through a repository function in `src/db/`. Components never touch the database directly.

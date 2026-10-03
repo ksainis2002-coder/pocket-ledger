@@ -82,6 +82,7 @@ Notes:
 - From here on, each change is a branch and a PR
 - Real-device checks on the Pages URL:
   - iPhone: install gate shows in Safari; Add to Home Screen; the app opens offline; backup through the share sheet saves to Files; Back up now → Save to Files → Cancel in the Files picker leaves "Last backup" unchanged (if iOS reports the share as done anyway, ask "Did you save it?" before committing); the layout looks right on the real screen (notch, keyboard over the Add button)
+  - iPhone keyboard: tap Expenses in the tab bar → the decimal keypad opens by itself (iOS only opens it when focus happens inside the tap; if it doesn't, focus synchronously in the tab's click handler)
   - iPhone storage: add, edit, delete and undo entries, close the app fully, reopen, and confirm everything is still there (the WebKit check for the IndexedDB layer)
   - Android: installs from Chrome, opens offline, and the "Add expense" shortcut works
   - PC: installs from Chrome or Edge, opens offline in its own window, side menu and keyboard use work; move data phone → PC → phone with nothing lost
