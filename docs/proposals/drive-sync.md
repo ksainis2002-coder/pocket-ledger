@@ -1,6 +1,6 @@
 # Proposal: Google Drive sync (before publishing)
 
-Status: proposed, waiting for the project's review. Date: 2026-10-04.
+Status: **superseded** by [docs/design/drive-sync.md](../design/drive-sync.md) (approved 2026-10-25). Kept for history. Date: 2026-10-04.
 
 ## What the owner decided
 

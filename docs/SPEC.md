@@ -375,6 +375,10 @@ For opening transactions in a spreadsheet. It is not a backup and can't be impor
 - Formula injection: any cell starting with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'`.
 - Required tests: Greek locale output (`;`, `12,50`, BOM, `YYYY-MM-DD`); English locale output (`,`, `12.50`); a note with a delimiter and quotes; a note starting with `=`; Greek characters survive; an e2e test that downloads the CSV and reads it back. Opening it in Excel is checked on the PC in Phase 4.
 
+## Google Drive sync (Phase 4C)
+
+Optional, off by default. Specified in full in [docs/design/drive-sync.md](design/drive-sync.md) (approved 2026-10-25), which is part of this SPEC: one encrypted file in the owner's Drive app folder, automatic sync, record-by-record merge with tombstones kept 180 days, recovery code, and the rules for first connect, resets and devices away more than 180 days. File backup, restore and "Send to my other device" stay as specified above; the design lists what they add when sync is on.
+
 ## Behavior rules
 
 - Amounts follow Amount input. Dates follow Dates and today.
