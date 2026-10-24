@@ -21,17 +21,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      # No lockfile yet (it couldn't be made without registry access): the first run makes one
-      # and uploads it, so it can be committed. After that, installs are exact with npm ci.
+      # npm ci once package-lock.json is committed (made by the "Make lockfile" workflow).
       - name: Install
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
-      - name: Upload the lockfile npm made
-        if: hashFiles('package-lock.json') != '' && github.event_name == 'push'
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-lock
-          path: package-lock.json
       - run: npm run lint
       - run: npm run test
       - run: npm run build

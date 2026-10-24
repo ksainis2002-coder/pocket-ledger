@@ -1,0 +1,34 @@
+name: Make lockfile
+
+# Run by hand (Actions → Make lockfile → Run workflow, or `gh workflow run lockfile.yml`).
+# The build environment can't reach the npm registry, so package-lock.json is made here and pushed
+# to the branch chore/lockfile, to be checked and merged through a PR.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Make package-lock.json from the public registry
+        run: |
+          rm -f package-lock.json
+          npm install --package-lock-only --no-audit --no-fund --registry=https://registry.npmjs.org/
+          if grep -o '"resolved": "[^"]*' package-lock.json | grep -v '"resolved": "https://registry.npmjs.org/'; then
+            echo "A resolved URL isn't registry.npmjs.org"; exit 1
+          fi
+      - name: Push it to chore/lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B chore/lockfile
+          git add package-lock.json
+          git commit -m "chore: add package-lock.json made from registry.npmjs.org"
+          git push --force origin chore/lockfile
