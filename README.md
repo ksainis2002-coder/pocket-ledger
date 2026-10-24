@@ -3,7 +3,7 @@
 A private personal-finance app for tracking income, expenses, savings and goals. It installs to your phone's home screen, works offline, and keeps all data on your device.
 
 ## Status
-Early development. **Not published yet:** it is built and tested locally until Phase 4 (Publish). See [docs/ROADMAP.md](docs/ROADMAP.md).
+In testing at https://ksainis2002-coder.github.io/pocket-ledger/. **Not ready for real money yet:** Google Drive sync and the real-device checks come first (Phase 4). See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Use it
 Open the GitHub Pages URL for this repo, then install it before entering anything.
