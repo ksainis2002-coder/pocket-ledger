@@ -6,7 +6,7 @@ Instructions for Claude Code working in this repository. Read this file and `doc
 
 Pocket Ledger is a **personal finance app for one person**. It tracks income, expenses, savings and savings goals. It is an installable **Progressive Web App (PWA)** used mainly on a phone, and also on desktop.
 
-**All data stays on the device.** There is no server, no account, no analytics and no network calls with user data. It is developed locally first. Only in Phase 4 (Publish) does it go to GitHub and get hosted as static files on GitHub Pages.
+**Data lives on the device.** There is no server, no account of ours and no analytics. Optional Google Drive sync (Phase 4C, `docs/design/drive-sync.md`) stores one encrypted file in the owner's own Drive; nothing else carries user data. The app is hosted as static files on GitHub Pages from `ksainis2002-coder/pocket-ledger`.
 
 `prototype/pocket-ledger-prototype.html` is the working single-file prototype. Treat it as the reference for features and behavior, not for code structure.
 
@@ -24,7 +24,7 @@ There is no import of prototype data.
 
 ## Non-negotiables
 
-1. **No user data leaves the device.** No backend, no telemetry, no third-party scripts at runtime, no CDN fonts (use system font stacks, or self-hosted files in `public/fonts/`). The only network traffic is loading the app's own static files.
+1. **No user data leaves the device unencrypted.** When the owner turns on Drive sync, the app stores one encrypted file in a hidden app folder in the owner's own Google Drive. Only the owner's password or recovery code can open it; Google sees only unreadable data. There is no server of ours, no analytics, no telemetry, no third-party scripts at runtime and no CDN fonts (use system font stacks, or self-hosted files in `public/fonts/`). Sync is off until the owner turns it on. Apart from that, the only network traffic is loading the app's own static files.
 2. **Money is stored as integer cents** (`amountCents: number`). Never store or add floats. Parse input only with `parseAmount` from `src/domain/money.ts`. Format only at the UI edge with `Intl.NumberFormat`.
 3. **Dates are local calendar dates** stored as `"YYYY-MM-DD"` strings. Never convert them through UTC (no `new Date("2026-10-03")` for display logic; parse the parts). Read "today" from app state, never from a value captured at load.
 4. **Works offline.** After the first visit, every feature works with no connection.
@@ -49,7 +49,7 @@ The project has only four dev dependencies, all pinned in `package.json`: `esbui
 - **Plain CSS with CSS custom properties** (design tokens in `src/styles/tokens.css`). No UI kit.
 - **Fonts:** system font stacks only, so nothing is fetched from a font CDN. Self-hosted font files may be added to `public/fonts/` later. Every amount uses the `.num` class (monospace stack `--font-mono` with `font-variant-numeric: tabular-nums`) so figures line up.
 - **Tests:** Node's built-in test runner (`node:test` + `node:assert/strict`) run through `tsx`, for unit and repository tests. **Playwright** (library, Chromium) for end-to-end checks at a 375×812 viewport.
-- **Lint:** `tsc --noEmit` with the strict flags above, plus `scripts/lint.mjs`, which enforces the non-negotiables: no `parseFloat` or `Number(` on amount strings, no `new Date("YYYY-MM-DD")` string parsing, no `window.confirm`, no `innerHTML =` with data, and no external URLs in `src/`.
+- **Lint:** `tsc --noEmit` with the strict flags above, plus `scripts/lint.mjs`, which enforces the non-negotiables: no `parseFloat` or `Number(` on amount strings, no `new Date("YYYY-MM-DD")` string parsing, no `window.confirm`, no `innerHTML =` with data, and no external URLs in `src/` (from Phase 4C, `accounts.google.com` and `www.googleapis.com` are allowed only in the Drive sync module).
 - Charts are hand-rolled SVG. Add a chart library only if this becomes painful, and ask first.
 
 The base path is set at build time: `npm run build` uses `/`, `npm run build:pages` uses `/pocket-ledger/` (a `--base=` flag, so it works on every OS; `BASE` env is also read). Never hard-code `/` or `/pocket-ledger/` in asset paths, the manifest or the service worker. Read it from `BASE_PATH` in `src/app/env.ts`.
@@ -99,7 +99,7 @@ Before saying a task is done: `npm run lint && npm run test && npm run build` mu
 ## Working style
 
 - Work one phase from `docs/ROADMAP.md` at a time, on a local git branch named `phase-N-short-name`. When the phase is done, write a short phase summary (what changed, how it was tested, new dependencies), and merge into `main` locally only after I approve.
-- There is no GitHub remote until Phase 4 (Publish). Don't add one, push, or set up CI or hosting before then.
+- The GitHub remote is `ksainis2002-coder/pocket-ledger`. Every change is a branch and a pull request; CI (lint, test, build, e2e) must pass before merging, and `main` deploys to GitHub Pages. Phase merges still wait for my approval. `package-lock.json` is made by the "Make lockfile" workflow, since the build environment can't reach the npm registry.
 - Use small commits with conventional messages (`feat:`, `fix:`, `test:`, `chore:`, `docs:`).
 - Write tests alongside the code. Every domain function gets unit tests, including edge cases: zero, month boundaries, leap years and cents rounding. Every "Required tests" list in SPEC.md is part of done.
 - If a requirement in SPEC.md is unclear or seems wrong, stop and ask rather than guess.

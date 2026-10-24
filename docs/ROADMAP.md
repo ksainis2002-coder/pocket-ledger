@@ -1,6 +1,6 @@
 # Roadmap
 
-Everything is built and tested on your computer first. GitHub comes only in Phase 4 (Publish).
+Phases 0–3 were built and tested locally. Since Phase 4A the repo is on GitHub (`ksainis2002-coder/pocket-ledger`), every change is a pull request, and `main` deploys to GitHub Pages.
 
 Each phase is one local branch. Paste the **prompt** into Claude Code (on a computer) or into the Claude chat session that builds the app (from a phone) to start a phase. Review it with `npm run dev`, and on your phone with `npm run dev -- --host` (same Wi-Fi). Then approve the merge.
 
@@ -75,23 +75,47 @@ Notes:
 **Done when:** a backup restores perfectly in another browser profile, moving data both ways between two browser profiles (standing in for phone and PC) loses nothing and warns about unsent changes, and an e2e test downloads the CSV on a Greek-locale page and reads it back (BOM, `;`, `12,50`, `YYYY-MM-DD`, Greek text, formula escaping). Opening the CSV in Excel is a Phase 4 PC check.
 
 ## Phase 4 — Publish
-**Prompt:** "Do Phase 4 from docs/ROADMAP.md. The GitHub repo is <username>/pocket-ledger."
 
-- Add the GitHub remote and push `main` with its full history
-- GitHub Actions: lint + test + build + e2e on every push and PR (`npx playwright install --with-deps chromium` before `npm run e2e`); deploy `main` to GitHub Pages using `npm run build:pages`, only after those pass
-- Lockfile: the build environment has no npm registry access, so there is no `package-lock.json` yet. The first CI run uses `npm install` (all five dev dependencies are pinned exactly) and uploads the lockfile it made; commit that file (every `resolved` must be `https://registry.npmjs.org/`), then CI switches to `npm ci`
+Split into four steps. Drive sync follows `docs/design/drive-sync.md` (approved 2026-10-25).
+
+### 4A — Repo and CI (done 2026-10-25)
+- Remote `ksainis2002-coder/pocket-ledger`, `main` pushed with its full history
+- GitHub Actions: lint, test, build, build:pages, Playwright Chromium install and e2e on every push and PR; Pages deploys `main` with `npm run build:pages` only after those pass
+- `package-lock.json` made by the hand-run "Make lockfile" workflow (every `resolved` is registry.npmjs.org); CI uses `npm ci`
 - From here on, each change is a branch and a PR
+
+### 4B — Sign-in spike
+**Prompt:** "Do Phase 4B from docs/ROADMAP.md, following the spike section of docs/design/drive-sync.md."
+
+- Throwaway code on a `spike/drive-sign-in` branch, deployed to Pages so it runs on the real origin; nothing reaches `main` except the findings
+- On the iPhone home-screen app, the Android installed app and the PC installed app: does sign-in return to the installed app; how often does sign-in have to be repeated with method A (hand-written token flow) and method B (code flow with PKCE and a refresh token)
+- Does Drive v3 accept a conditional upload; if not, confirm the before-and-after revision check works
+- Needs the owner's one-time Google Cloud setup (project, consent screen with the owner as test user, web client ID with the Pages origin and `http://localhost:5173`)
+
+**Done when:** the findings are written up per device and method, and the owner has made the Go / no-go call (design: Go criteria).
+
+### 4C — Drive sync
+**Prompt:** "Do Phase 4C from docs/ROADMAP.md, building docs/design/drive-sync.md."
+
+- Built to the design, behind the Settings switch, with the schema v1 → v2 migration and its upgrade test
+- Lint allows `accounts.google.com` and `www.googleapis.com` only in the Drive sync module
+- Every test listed in the design's Tests section, including e2e against a fake Drive
+
+**Done when:** lint, test, build and e2e pass, the design's tests are in, and the Drive settings, setup, recovery code, "See what changed" and restore-preview screenshots have been reviewed.
+
+### 4D — Real-device checks and release
 - Real-device checks on the Pages URL:
   - iPhone: install gate shows in Safari; Add to Home Screen; the app opens offline; backup through the share sheet saves to Files; Back up now → Save to Files → Cancel in the Files picker leaves "Last backup" unchanged (if iOS reports the share as done anyway, ask "Did you save it?" before committing); the layout looks right on the real screen (notch, keyboard over the Add button)
   - iPhone keyboard: tap Expenses in the tab bar → the decimal keypad opens by itself (iOS only opens it when focus happens inside the tap; if it doesn't, focus synchronously in the tab's click handler)
   - iPhone storage: add, edit, delete and undo entries, close the app fully, reopen, and confirm everything is still there (the WebKit check for the IndexedDB layer)
+  - iPhone file picker: "Restore from backup" shows the .json backup in Files (not greyed out)
   - Android: installs from Chrome, opens offline, and the "Add expense" shortcut works
   - PC: installs from Chrome or Edge, opens offline in its own window, side menu and keyboard use work; move data phone → PC → phone with nothing lost; the CSV opens in Excel with correct columns, dates and amounts
-  - iPhone file picker: "Restore from backup" shows the .json backup in Files (not greyed out)
-- Remove "Not published yet" from the README Status
+  - Drive on all three: connect, phone → PC catch-up, offline then online, and the lost-phone drill (delete the phone app, reinstall, connect, everything comes back)
+- Change the README Status to published
 - Run the release checklist from the project instructions and fix every fail
 
-**Done when:** the release checklist has no fails, and you've used the installed app on your phone for a few days with a backup made.
+**Done when:** the release checklist has no fails, and you've used the installed app on your phone for a few days with Drive sync on and a file backup made.
 
 ## Phase 5 — After launch (optional, pick in any order)
 - Recurring entries (rent, salary) that create themselves each month, with a review step
@@ -110,4 +134,4 @@ Each item is its own branch and PR. Any schema change needs a schema migration a
 ## Ground rules for every phase
 - `npm run lint && npm run test && npm run build` pass before a phase is called done, and `npm run e2e` from Phase 1 on
 - The phase summary lists what changed, how it was tested, and any new dependency with its reason
-- Nothing in the app sends data off the device
+- Nothing in the app sends data off the device, except the encrypted Drive file when the owner turns sync on

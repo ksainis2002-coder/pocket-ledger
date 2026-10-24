@@ -74,3 +74,9 @@
 | 2026-10-04 | No "older backup" line in the restore preview; the lineage warning and lost list replace it | They catch every case it did; when a restore is safe it could only fire from clock skew between devices, and showing both repeated the same entries |
 | 2026-10-04 | A file made on this same device says "From this {device}" and "This backup doesn't include your latest changes" | "Your Linux PC never received" makes no sense when restoring your own older backup on that PC |
 | 2026-10-04 | The Install card always lists the iPhone steps | The PC is where you'd read them before setting up the phone |
+| 2026-10-25 | Repo on GitHub; CI runs lint, test, build, e2e on every push and PR; Pages deploys `main` only after they pass | Phase 4A; nothing reaches the live site without the full checks |
+| 2026-10-25 | `package-lock.json` is made by a hand-run GitHub workflow and pushed to a branch for a PR | The build environment can't reach the npm registry or GitHub's artifact storage; a branch can be fetched with git |
+| 2026-10-25 | Google Drive sync, built to docs/design/drive-sync.md, replaces the 2026-10-04 proposal | The owner wants automatic protection against losing a device, and the PC kept current; the design settles every case where a guess could lose data or bring deletions back |
+| 2026-10-25 | Non-negotiable 1 becomes "No user data leaves the device unencrypted" | Drive sync stores one encrypted file in the owner's Drive; lint allows only the two Google hosts, only in the sync module |
+| 2026-10-25 | The 4B spike tests two sign-in methods (token flow, and code flow with PKCE and a refresh token) and Drive's conditional upload | Quiet renewal is likely blocked by Safari's tracking protection; going in with a second option avoids a bare no-go |
+| 2026-10-25 | Sync also tries an upload when the app goes to the background | Shrinks the window where a phone change hasn't reached Drive; the next-open sync stays the guarantee |
